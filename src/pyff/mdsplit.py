@@ -14,6 +14,7 @@ import os
 import re
 import shutil
 import sys
+import urllib
 
 from pyff.mdrepo import MDRepository
 from pyff.pipes import plumbing
