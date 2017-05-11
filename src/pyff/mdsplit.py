@@ -24,12 +24,11 @@ XMLDECLARATION = '<?xml version="1.0" ?>'
 
 
 class Pipeline:
-    def __init__(self, keyfile, certfile, cacheDuration, validUntil, pkcs11url=None):
-        self.keyfile = keyfile
+    def __init__(self, keyfile, certfile, cacheDuration, validUntil):
+        self.key = keyfile
         self.certfile = certfile
         self.cacheDuration = cacheDuration
         self.validUntil = validUntil
-        self.pkcs11url = pkcs11url
 
     def get(self, loaddir, outfile, template_file=None):
         # sign a single entity descriptor
@@ -54,9 +53,8 @@ class Pipeline:
                                             outfile,
                                             self.cacheDuration,
                                             self.validUntil,
-                                            self.keyfile,
+                                            self.key,
                                             self.certfile,
-                                            self.pkcs11url,
                                            )
         return pipeline
 
@@ -125,6 +123,6 @@ def process_md_aggregate(args):
     for a in root.attrib:
         alist += ' ' + a + '="' + root.attrib[a] + '"'
     logging.debug('Root element: ' + root.tag + alist)
-    pipeline = Pipeline(args.keyfile, args.certfile, args.cacheDuration, args.validUntil, args.pkcs11url)
+    pipeline = Pipeline(args.key, args.certfile, args.cacheDuration, args.validUntil)
     for ed in root.findall('{urn:oasis:names:tc:SAML:2.0:metadata}EntityDescriptor'):
         process_entity_descriptor(ed, pipeline, args)

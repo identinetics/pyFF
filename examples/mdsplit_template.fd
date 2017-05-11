@@ -1,0 +1,11 @@
+- load:
+  - {0}
+- select
+- finalize:
+    cacheDuration: {2}
+    validUntil: {3}
+- sign:
+    key:  {4}
+    cert: {5}
+- publish:
+    {1}
