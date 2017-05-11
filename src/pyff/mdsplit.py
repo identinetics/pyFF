@@ -42,11 +42,11 @@ class Pipeline:
   - {0}
 - select
 - finalize:
-    cacheDuration: {4}
-    validUntil: {5}
+    cacheDuration: {2}
+    validUntil: {3}
 - sign:
-    key:  {2}
-    cert: {3}
+    key:  {4}
+    cert: {5}
 - publish:
     {1}
 '''
