@@ -1,7 +1,9 @@
 """
 mdsplit creates a separate signed XML file for each EntitiyDescriptor from the input md aggregate.
+This is a subset of the MDQ specification to allowing to address an entitiy using following scheme
+<baseurl>/entities/<urlencode(entityID)>
 
-Note: The input file is considered to be trusted, the signature is not verified.
+Note: The input file is considered to be trusted, therefore its signature is not verified.
 """
 
 __author__ = 'r2h2'
@@ -21,15 +23,21 @@ XMLDECLARATION = '<?xml version="1.0" ?>'
 
 
 class Pipeline:
-    def __init__(self, keyfile, certfile, cacheDuration, validUntil):
+    def __init__(self, keyfile, certfile, cacheDuration, validUntil, pkcs11url=None):
         self.keyfile = keyfile
         self.certfile = certfile
         self.cacheDuration = cacheDuration
         self.validUntil = validUntil
+        self.pkcs11url = pkcs11url
 
-    def get(self, loaddir, outfile):
+    def get(self, loaddir, outfile, template_file=None):
         # sign a single entity descriptor
-        pipeline = '''- load:
+
+        if template_file:
+            with (open(template_file, 'r')) as fd:
+                pipeline_template = fd.read()
+        else:
+            pipeline_template = '''- load:
   - {0}
 - select
 - finalize:
@@ -40,39 +48,21 @@ class Pipeline:
     cert: {3}
 - publish:
     {1}
-'''.format(loaddir,
-           outfile,
-           self.keyfile,
-           self.certfile,
-           self.cacheDuration,
-           self.validUntil)
+'''
+        pipeline = pipeline_template.format(loaddir,
+                                            outfile,
+                                            self.cacheDuration,
+                                            self.validUntil,
+                                            self.keyfile,
+                                            self.certfile,
+                                            self.pkcs11url,
+                                           )
         return pipeline
 
 
 def entityid_to_dirname(entityid):
-    """
-    Derive a directory name from an HTTP-URL-formed entityID, removing dots and slashes
-    :param entityid:
-    :return: dirname derived from entityID
-    """
-    x = re.sub(r'^https?://', '', entityid)
-    r = ''
-    upper = False
+    return urllib.quote(entityid, safe='')
 
-    in_path = False
-    for i in range(0, len(x)):
-        if x[i].isalpha() or x[i].isdigit():
-            if upper:
-                r += x[i].upper()
-            else:
-                r += x[i]
-            upper = False
-        elif not in_path and x[i] == '/':
-            r += '_'
-            in_path = True
-        else:
-            upper = True
-    return r
 
 
 def simple_md(pipeline):
@@ -91,7 +81,7 @@ def process_entity_descriptor(ed, pipeline, args):
     3. execute pyff to create an aggregate with the EntityDescriptor
     4. delete temp files
     Note: for pyff pipeline processing the entityDescriptor xml file must be alone in a directory
-    TODO: remove EntitiesDecriptor and make EntityDescriptor the rool element.
+    TODO: remove EntitiesDecriptor and make EntityDescriptor the root element.
     """
     dirname_temp = os.path.abspath(os.path.join(args.outdir_unsigned,
                                                 entityid_to_dirname(ed.attrib['entityID'])))
@@ -134,6 +124,6 @@ def process_md_aggregate(args):
     for a in root.attrib:
         alist += ' ' + a + '="' + root.attrib[a] + '"'
     logging.debug('Root element: ' + root.tag + alist)
-    pipeline = Pipeline(args.keyfile, args.certfile, args.cacheDuration, args.validUntil)
+    pipeline = Pipeline(args.keyfile, args.certfile, args.cacheDuration, args.validUntil, args.pkcs11url)
     for ed in root.findall('{urn:oasis:names:tc:SAML:2.0:metadata}EntityDescriptor'):
         process_entity_descriptor(ed, pipeline, args)

@@ -49,6 +49,7 @@ class Invocation:
         self.parser = argparse.ArgumentParser(description='Metadata Splitter')
         self.parser.add_argument('-c', '--certfile', dest='certfile')
         self.parser.add_argument('-k', '--keyfile', dest='keyfile')
+        self.parser.add_argument('-p', '--pkcs11url', dest='pkcs11url')
         self.parser.add_argument('-n', '--nocleanup', action='store_true',
             help='do not delete temporary files after signing')
         self.parser.add_argument('-S', '--nosign', action='store_true', help='do not sign output')
@@ -58,7 +59,7 @@ class Invocation:
         loglevel_env = os.environ['LOGLEVEL'] if 'LOGLEVEL' in os.environ else 'INFO'
         self.parser.add_argument('-L', '--loglevel', dest='loglevel', default=loglevel_env,
             choices=LOGLEVELS.keys(), help='default is INFO if env[LOGLEVEL] is not set')
-        self.parser.add_argument('-o', '--outdir_signed', default=None,
+        self.parser.add_argument('-o', '--outdir_signed', default='entities',
             help='Directory for files containing one signed EntityDescriptor each.')
         self.parser.add_argument('-C', '--cacheduration', dest='cacheDuration', default='PT5H',
             help='override value from input EntitiesDescriptor, if any')
@@ -76,6 +77,8 @@ class Invocation:
             self.args.outdir_signed = self._merge_arg('MDSPLIT_SIGNED', self.args.outdir_signed, 'outdir_signed')
         self.args.input = self._merge_arg('MD_AGGREGATE', self.args.input, 'input')
         self.args.outdir_unsigned = self._merge_arg('MDSPLIT_UNSIGNED', self.args.outdir_unsigned, 'outdir_unsigned')
+        if self.args.pkcs11url and (self.args.certfile or self.args.keyfile):
+            raise exception('--certfile/--keyfile and --pkcs11url are mutually exclusive arguments')
 
     def _merge_arg(self, env, arg, argname):
         """ merge argv with env """
