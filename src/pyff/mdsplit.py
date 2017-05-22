@@ -60,8 +60,8 @@ class Pipeline:
 
 
 def entityid_to_dirname(entityid):
-    return urllib.quote(entityid, safe='')
-
+    entityid_safename = entityid.replace('/', '_')
+    return urllib.quote(entityid_safename, safe='')
 
 
 def simple_md(pipeline):
