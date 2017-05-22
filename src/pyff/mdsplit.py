@@ -60,7 +60,7 @@ class Pipeline:
 
 
 def entityid_to_dirname(entityid):
-    entityid_safename = entityid.replace('/', '_')
+    entityid_safename = entityid.replace('/', '_').replace(':', '.') # prevent httpd url-encoding '%'
     return urllib.quote(entityid_safename, safe='')
 
 
