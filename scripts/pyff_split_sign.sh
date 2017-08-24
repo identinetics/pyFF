@@ -12,6 +12,7 @@
 
 # Step 1. Split aggregate and create an XML and a pipeline file per EntityDescriptor
 [ "$LOGLEVEL" == "DEBUG" ] && echo "processing "
+rm -rf $MDSPLIT_UNSIGNED/*
 /usr/bin/pyff_mdsplit.py \
     -c $MDSIGN_CERT -k $MDSIGN_KEY \
     -l $LOGFILE -L DEBUG \
