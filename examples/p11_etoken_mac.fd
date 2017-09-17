@@ -1,0 +1,10 @@
+- load: 
+  - /Users/admin/devl/docker/identinetics/docker-pyff/install/testdata/md_source
+- select
+- xslt:
+    stylesheet: tidy.xsl
+- sign: 
+    key: pkcs11:///Library/Frameworks/eToken.framework/Versions/A/libeToken.dylib/test
+- publish:
+    output: /tmp/idp.xml
+- stats

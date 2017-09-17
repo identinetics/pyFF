@@ -1,5 +1,5 @@
 Using pyFF
-=============
+==========
 
 pyFF has three command-line tools: pyff, pyffd and pyff_mdsplit.
 
@@ -48,3 +48,9 @@ runtime data to operate on.
 Documentation for each pipe is in the :py:mod:`pyff.pipes.builtins` Module. Also take a look at the :doc:`examples`.
 
 For the documentation of pyff_mdsplit run pyff_mdsplit.py --help
+
+pyFF as an IDP-discovery service
+--------------------------------
+
+Direct the discovery request to <fqdn/role/idp.ds, and append the required URL arguments (entityID and return)
+to use pyffd for centraliced IDP-discovery via frontend channel.
