@@ -130,6 +130,49 @@ msgid ""
 "this service!"
 msgstr "Die Auswahl ist für den nächsten Besuch vorgemerkt!"
 
+#: src/pyff/site/templates/ds.html: various locations
+msgid ""
+"Please login..."
+"Bitte melden Sie sich an."
+
+msgid ""
+"You are connecting to..."
+"Sie verbinden sich mit"
+
+msgid ""
+"This service requests that you <strong>identify yourself</strong>. Select your preferred identity service below... "
+"Diese Dienst erfordert, dass Sie sich anmelden. Bitte wählen Sie Ihr bevorzugtes Identitätsservice aus."
+
+msgid ""
+"Start typing to search for your identity service..."
+"Suche beginnt mit der Eingabe ..."
+
+msgid ""
+"Show me more choices"
+"Weitere Auswahlmöglichkeiten anzeigen"
+
+msgid ""
+"If you always use one and the same login provider for everything it might be a good idea to remember your choice by pressing <em>Login and use Forever</em>. Press <em>Start Over</em> to redo the search and pick another login provider."
+"Wenn Sie immer den gleichen Identitätsprovider verwenden können Sie die Auswahl speichern."
+
+msgid ""
+"Proceed to Login"
+"Weiter zum Login"
+
+msgid ""
+"Login and use Forever"
+"Login und Auswahl merken"
+
+msgid ""
+"Yes I am Sure - Use Forever"
+"Ja, ich bin sicher - Auswahl für immer merken"
+
+msgid ""
+"Start Over"
+"Zurück"
+
+
+
 #: src/pyff/site/templates/finger.html:3
 msgid "Routes"
 msgstr ""
