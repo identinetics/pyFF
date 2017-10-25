@@ -131,47 +131,35 @@ msgid ""
 msgstr "Die Auswahl ist für den nächsten Besuch vorgemerkt!"
 
 #: src/pyff/site/templates/ds.html: various locations
-msgid ""
-"Please login..."
-"Bitte melden Sie sich an."
+msgid "Please login..."
+msgstr "Bitte melden Sie sich an."
 
-msgid ""
-"You are connecting to..."
-"Sie verbinden sich mit"
+msgid "You are connecting to..."
+msgstr "Sie verbinden sich mit"
 
-msgid ""
-"This service requests that you <strong>identify yourself</strong>. Select your preferred identity service below... "
-"Diese Dienst erfordert, dass Sie sich anmelden. Bitte wählen Sie Ihr bevorzugtes Identitätsservice aus."
+msgid "This service requests that you <strong>identify yourself</strong>. Select your preferred identity service below... "
+msgstr "Diese Dienst erfordert, dass Sie sich anmelden. Bitte wählen Sie Ihr bevorzugtes Identitätsservice aus."
 
-msgid ""
-"Start typing to search for your identity service..."
-"Suche beginnt mit der Eingabe ..."
+msgid "Start typing to search for your identity service..."
+msgstr "Suche beginnt mit der Eingabe ..."
 
-msgid ""
-"Show me more choices"
-"Weitere Auswahlmöglichkeiten anzeigen"
+msgid "Show me more choices"
+msgstr "Weitere Auswahlmöglichkeiten anzeigen"
 
-msgid ""
-"If you always use one and the same login provider for everything it might be a good idea to remember your choice by pressing <em>Login and use Forever</em>. Press <em>Start Over</em> to redo the search and pick another login provider."
-"Wenn Sie immer den gleichen Identitätsprovider verwenden können Sie die Auswahl speichern."
+msgid "If you always use one and the same login provider for everything it might be a good idea to remember your choice by pressing <em>Login and use Forever</em>. Press <em>Start Over</em> to redo the search and pick another login provider."
+msgstr "Wenn Sie immer den gleichen Identitätsprovider verwenden können Sie die Auswahl speichern."
 
-msgid ""
-"Proceed to Login"
-"Weiter zum Login"
+msgid "Proceed to Login"
+msgstr "Weiter zum Login"
 
-msgid ""
-"Login and use Forever"
-"Login und Auswahl merken"
+msgid "Login and use Forever"
+msgstr "Login und Auswahl merken"
 
-msgid ""
-"Yes I am Sure - Use Forever"
-"Ja, ich bin sicher - Auswahl für immer merken"
+msgid "Yes I am Sure - Use Forever"
+msgstr "Ja, ich bin sicher - Auswahl für immer merken"
 
-msgid ""
-"Start Over"
-"Zurück"
-
-
+msgid "Start Over"
+msgstr "Zurück"
 
 #: src/pyff/site/templates/finger.html:3
 msgid "Routes"
@@ -184,6 +172,18 @@ msgstr "Alle Entities"
 #: src/pyff/site/templates/header.html:65
 msgid "About"
 msgstr "Über"
+
+#: src/pyff/site/templates/ui.html
+msgid "Toggle navigation"
+msgstr "Naviagation ein/aus"
+
+#: src/pyff/site/templates/ui.html
+msgid "Reset"
+msgstr "Zurücksetzen"
+
+#: src/pyff/site/templates/ui.html
+msgid "Settings"
+msgstr "Einstellungen"
 
 #: src/pyff/site/templates/header.html:66
 msgid "Statistics"
@@ -199,10 +199,10 @@ msgstr "Wollen Sie Ihre Einstellungen wirklich verwerfen?"
 
 #: src/pyff/site/templates/reset.html:51
 msgid ""
-"The identity provider chooser allows you to save certain settings, such "
-"as your last visited identity providers. This is done to make your login "
+"The login provider chooser allows you to save certain settings, such as "
+"your last visited login providers. This is done to make your login "
 "experience as seemless as possible. However you may need to reset these "
-"settings, perhaps to disable your pre-selected identity provider(s)."
+"settings, perhaps to disable your pre-selected login provider(s)."
 msgstr "Die Stammportalauswahl erlaubt zu speichern welches Stammportal "
 "zuletzt besucht wurde."  "Möglicherweise müssen Sie später einmal diese "
 "Einstellungen ändern um sie über ein anderes Stammportal anzumelden."
@@ -221,19 +221,22 @@ msgstr "Ja, meine Einstellungen löschen"
 
 #: src/pyff/site/templates/reset.html:59
 msgid "No, get me out of here!"
-msgstr "Nein, nichts wie weg von hier"
+msgstr "Nein, lieber doch nicht"
 
 #: src/pyff/site/templates/settings.html:31
 msgid "No cookies served here!"
-msgstr ""
+msgstr "Hier werden keine Cookies verwendet!"
 
 #: src/pyff/site/templates/settings.html:34
 msgid ""
 "This service uses HTML5 local store (and corresponding service in some "
-"non-HTML5 browsers) to store settings and preferences. This means that no"
-" cookies are sent to the server and no personal information is ever "
-"leaked to a 3rd party."
-msgstr "Dieser Dienst verwendet 'HTML5 local Storage' um benutzerspezifische "
-"Einstellungen zu speichern. Daher werden keine cookies an den Server gesendet. "
-"Persönliche Daten werdne nicht an Dritte weitergegeben."
+"non-HTML5 browsers) to store settings and preferences. This means that no "
+"cookies are sent to the server and no personal information is ever leaked "
+"to a 3rd party. Nevertheless it may sometimes be useful or necessary to"
+msgstr "Dieser Dienst verwendet 'HTML5 Local Storage' um benutzerspezifische "
+"Einstellungen zu speichern. Daher werden keine Cookies an den Server gesendet. "
+"Persönliche Daten werden nicht an Dritte weitergegeben. Dennoch können Sie Ihre"
+"persönlichen Einstellung für dieses Service"
 
+msgid "clear your settings on this site"
+msgstr "hier löschen"
