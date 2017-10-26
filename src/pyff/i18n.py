@@ -10,4 +10,7 @@ LOCALE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "i18n")
 
 language = gettext.translation('messages', LOCALE_DIR, fallback=True)
 
-logging.debug('Locale: ' + language._info['language'], ', rev: ' + language._info['po-revision-date'])
+try:
+    logging.debug('Locale: {language}, rev: {po-revision-date}'.format(**language.info()))
+except KeyError:
+    logging.debug('Locale: unknown')
