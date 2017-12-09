@@ -12,14 +12,11 @@
             <alg:SigningMethod MinKeySize="2048" MaxKeySize="4096" Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
             <!-- blacklisted: http://www.w3.org/2000/09/xmldsig#rsa-sha1 -->
             <mdui:UIInfo>
-                <mdui:DisplayName xml:lang="en">Test Driver IdP </mdui:DisplayName>
-                <mdui:Description xml:lang="en">Saml2Test Test Driver IdP</mdui:Description>
+                <mdui:DisplayName xml:lang="de">Test Driver IdP </mdui:DisplayName>
+                <mdui:DisplayName xml:lang="en">Test Treiber IdP </mdui:DisplayName>
+                <mdui:Description xml:lang="de">Saml2Test Test Driver IdP</mdui:Description>
+                <mdui:Description xml:lang="en">Saml2Test Test Treiber IdP</mdui:Description>
             </mdui:UIInfo>
-            <mdui:DiscoHints>
-                <mdui:DomainHint>https://github.com/rohe/fedlab/</mdui:DomainHint>
-                <mdui:IPHint>81.217.70.0/8</mdui:IPHint>
-                <mdui:GeolocationHint>geo:92.3308,17.0516</mdui:GeolocationHint>
-            </mdui:DiscoHints>
         </md:Extensions>
         <md:KeyDescriptor use="signing">
             <ds:KeyInfo>
@@ -46,8 +43,6 @@
         </md:KeyDescriptor>
         <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://idp.example.com/slo/post"/>
         <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/slo/redirect"/>
-        <md:ManageNameIDService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://idp.example.com/mni/post"/>
-        <md:ManageNameIDService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/mni/redirect"/>
         <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</md:NameIDFormat>
         <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:persistent</md:NameIDFormat>
         <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso/redirect"/>

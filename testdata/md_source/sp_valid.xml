@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<md:EntityDescriptor entityID="https://sp.example.org/sp.xml"
+<md:EntityDescriptor entityID="https://sp.testdom.local/sp.xml"
                      xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
                      xmlns:alg="urn:oasis:names:tc:SAML:metadata:algsupport"
                      xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
@@ -23,37 +23,28 @@
                         WantAssertionsSigned="true">
         <md:Extensions>
             <alg:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
-            <alg:SigningMethod MinKeySize="256" MaxKeySize="511"
-                               Algorithm="http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"/>
-            <alg:SigningMethod MinKeySize="2048" MaxKeySize="4096"
-                               Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
+            <alg:SigningMethod MinKeySize="256" MaxKeySize="511" Algorithm="http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"/>
+            <alg:SigningMethod MinKeySize="2048" MaxKeySize="4096" Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
             <mdui:UIInfo>
-                <mdui:DisplayName xml:lang="de">sp.example.org</mdui:DisplayName>
-                <mdui:DisplayName xml:lang="en">sp.example.org</mdui:DisplayName>
-            </mdui:Description>
-                <mdui:Description xml:lang="en">Testumgebung Echo Service (zentrales IdP Discovery
-                    Service)
-                </mdui:Description>
-                <mdui:Logo xml:lang="de" height="70" width="79">
-                    http://md.example.org/logo.png
-                </mdui:Logo>
-                <mdui:Logo xml:lang="en" height="70" width="79">
-                    http://md.example.org/logo.png
-                </mdui:Logo>
+                <mdui:DisplayName xml:lang="en">sp.testdom.local (en)</mdui:DisplayName>
+                <mdui:DisplayName xml:lang="de">sp.testdom.local (de)</mdui:DisplayName>
+                <mdui:Description xml:lang="de">Testumgebung Echo Service (central IdP Discovery Service)</mdui:Description>
+                <mdui:Description xml:lang="en">Testumgebung Echo Service (zentrales IdP Discovery Service)</mdui:Description>
+                <mdui:Logo xml:lang="en" height="70" width="79">http://md.testdom.local/logo.png</mdui:Logo>
             </mdui:UIInfo>
             <init:RequestInitiator Binding="urn:oasis:names:tc:SAML:profiles:SSO:request-init"
-                                   Location="https://sp.example.org/Shibboleth.sso/Login"
+                                   Location="https://sp.testdom.local/Shibboleth.sso/Login"
                                    xmlns:init="urn:oasis:names:tc:SAML:profiles:SSO:request-init"/>
             <idpdisc:DiscoveryResponse
                     Binding="urn:oasis:names:tc:SAML:profiles:SSO:idp-discovery-protocol"
-                    Location="https://sp.example.org/Shibboleth.sso/Login" index="1"
+                    Location="https://sp.testdom.local/Shibboleth.sso/Login" index="1"
                     xmlns:idpdisc="urn:oasis:names:tc:SAML:profiles:SSO:idp-discovery-protocol"/>
         </md:Extensions>
         <md:KeyDescriptor use="signing">
             <ds:KeyInfo>
-                <ds:KeyName>sp.example.org</ds:KeyName>
+                <ds:KeyName>sp.testdom.local</ds:KeyName>
                 <ds:X509Data>
-                    <ds:X509SubjectName>CN=sp.example.org</ds:X509SubjectName>
+                    <ds:X509SubjectName>CN=sp.testdom.local</ds:X509SubjectName>
                     <ds:X509Certificate>
                         MIIGgTCCBWmgAwIBAgIDDWmbMA0GCSqGSIb3DQEBBQUAMIGMMQswCQYDVQQGEwJJ
                         TDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0
@@ -95,31 +86,31 @@
             </ds:KeyInfo>
         </md:KeyDescriptor>
         <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
-                                Location="https://sp.test.example.org/idp/profile/SAML2/Redirect/SLO"/>
+                                Location="https://sp.test.testdom.local/idp/profile/SAML2/Redirect/SLO"/>
         <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:persistent</md:NameIDFormat>
         <md:AssertionConsumerService
                 Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST-SimpleSign"
-                Location="https://sp.example.org/Shibboleth.sso/SAML2/POST-SimpleSign"
+                Location="https://sp.testdom.local/Shibboleth.sso/SAML2/POST-SimpleSign"
                 index="0"/>
         <md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
-                                     Location="https://sp.example.org/Shibboleth.sso/SAML2/POST"
+                                     Location="https://sp.testdom.local/Shibboleth.sso/SAML2/POST"
                                      index="1"/>
     </md:SPSSODescriptor>
     <md:Organization>
         <md:OrganizationName xml:lang="de">SAML Testfederation</md:OrganizationName>
         <md:OrganizationDisplayName xml:lang="de">SAML Test Federation</md:OrganizationDisplayName>
-        <md:OrganizationURL xml:lang="de">http://www.example.org</md:OrganizationURL>
+        <md:OrganizationURL xml:lang="de">http://www.testdom.local</md:OrganizationURL>
     </md:Organization>
     <md:ContactPerson contactType="technical">
         <md:GivenName>Max</md:GivenName>
         <md:SurName>Mustermann</md:SurName>
-        <md:EmailAddress>max.mustermann@example.org</md:EmailAddress>
+        <md:EmailAddress>max.mustermann@testdom.local</md:EmailAddress>
         <md:TelephoneNumber>+43 000 9999 0000</md:TelephoneNumber>
     </md:ContactPerson>
     <md:ContactPerson contactType="support">
         <md:GivenName>Max</md:GivenName>
         <md:SurName>Mustermann</md:SurName>
-        <md:EmailAddress>max.mustermann@example.org</md:EmailAddress>
+        <md:EmailAddress>max.mustermann@testdom.local</md:EmailAddress>
         <md:TelephoneNumber>+43 000 9999 0000</md:TelephoneNumber>
     </md:ContactPerson>
 </md:EntityDescriptor>

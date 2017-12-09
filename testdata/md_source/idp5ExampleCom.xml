@@ -15,11 +15,6 @@
                 <mdui:DisplayName xml:lang="en">Test Driver IdP </mdui:DisplayName>
                 <mdui:Description xml:lang="en">Saml2Test Test Driver IdP</mdui:Description>
             </mdui:UIInfo>
-            <mdui:DiscoHints>
-                <mdui:DomainHint>https://github.com/rohe/fedlab/</mdui:DomainHint>
-                <mdui:IPHint>81.217.70.0/8</mdui:IPHint>
-                <mdui:GeolocationHint>geo:92.3308,17.0516</mdui:GeolocationHint>
-            </mdui:DiscoHints>
         </md:Extensions>
         <md:KeyDescriptor use="signing">
             <ds:KeyInfo>
