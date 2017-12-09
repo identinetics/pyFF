@@ -1,0 +1,25 @@
+- when update:
+    - load:
+       - /var/md_source
+    - break
+- when request:
+    - select
+    - pipe:
+        - when accept application/xml:
+             - xslt:
+                 stylesheet: tidy.xsl
+             - first
+             - finalize:
+                cacheDuration: PT4H
+                validUntil: P10D
+                ID: testWpvPortalverbundAt_
+             - sign:
+                key: /etc/pki/metadata_signing-key.pem
+                cert: /etc/pki/metadata_signing-crt.pem
+             - emit application/xml
+             - break
+        - when accept application/json:
+             - xslt:
+                 stylesheet: discojson.xsl
+             - emit application/json:
+             - break
