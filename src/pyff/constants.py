@@ -49,8 +49,8 @@ class Config(object):
     port = pyconfig.setting("pyff.port", 8080)
     bind_address = pyconfig.setting("pyff.bind_address", "127.0.0.1")
     pid_file = pyconfig.setting("pyff.pid_file", "/var/run/pyff.pid")
-    caching_enabled = pyconfig.setting("pyff.caching.enabled", True)
-    caching_delay = pyconfig.setting("pyff.caching.delay", 300)
+    caching_enabled = pyconfig.setting("pyff.caching.enabled", False)
+    caching_delay = pyconfig.setting("pyff.caching.delay", 300) # CherryPy 12 removed Response timeout parameter #2486
     daemonize = pyconfig.setting("pyff.daemonize", True)
     autoreload = pyconfig.setting("pyff.autoreload", False)
     frequency = pyconfig.setting("pyff.frequency", 600)
