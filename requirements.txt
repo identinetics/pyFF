@@ -2,7 +2,7 @@ redis
 ipaddr
 publicsuffix
 lxml
-cherrypy
+cherrypy<18.0.0
 sphinx-pypi-upload
 sphinx
 nose
