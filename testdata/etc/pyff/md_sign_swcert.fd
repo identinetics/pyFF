@@ -1,0 +1,14 @@
+- load:
+   - testdata/md_source
+#- select: "!//md:EntityDescriptor[md:SPSSODescriptor]"
+- select
+- store:
+     directory: /tmp/
+- finalize:
+     cacheDuration: PT4H
+     validUntil: P10D
+     ID: OurFederationSignedMetadata_
+- sign:
+    key: testdata/etc/pki/sign/metadata_key.pem
+    cert: testdata/etc/pki/sign/metadata_crt.pem
+- publish: testdata/md_feed/metadata_swcert.xml

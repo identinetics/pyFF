@@ -238,7 +238,7 @@ def safe_write(fn, data):
 
 site_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "site")
 env = Environment(loader=PackageLoader(__package__, 'templates'), extensions=['jinja2.ext.i18n'])
-env.install_gettext_callables(i18n.language.ugettext, i18n.language.ngettext, newstyle=True)
+env.install_gettext_callables(i18n.ugettext, i18n.ngettext, newstyle=True)
 
 import urllib
 from markupsafe import Markup
@@ -269,7 +269,7 @@ def render_template(name, **kwargs):
     kwargs.setdefault('http', cherrypy.request)
     kwargs.setdefault('brand', "pyFF @ %s" % request_vhost(cherrypy.request))
     kwargs.setdefault('google_api_key', config.google_api_key)
-    kwargs.setdefault('_', i18n.language.ugettext)
+    kwargs.setdefault('_', i18n.ugettext)
     return template(name).render(**kwargs)
 
 
@@ -396,6 +396,12 @@ def xslt_transform(t, stylesheet, params=None):
         xsl = etree.fromstring(resource_string(stylesheet, "xslt"))
         thread_data.xslt[stylesheet] = etree.XSLT(xsl)
     transform = thread_data.xslt[stylesheet]
+
+    locales = i18n.detect_locales()
+
+    if locales:
+        params['preflang'] = "'{locale}'".format(locale=locales[0])
+
     try:
         return transform(t, **params)
     except etree.XSLTApplyError, ex:

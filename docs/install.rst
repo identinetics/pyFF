@@ -92,6 +92,8 @@ Internationalization
   # python setup.py compile_catalog
   # python setup.py install
 
+
+
 Upgrading
 ---------
 
