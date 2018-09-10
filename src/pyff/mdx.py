@@ -699,7 +699,7 @@ class MDServer(object):
         raise NotFound()
 
 
-def main():
+def main()
     """
     The main entrypoint for the pyffd command.
     """
