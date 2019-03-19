@@ -14,3 +14,4 @@ requests
 simplejson
 jinja2
 pyconfig
+more-itertools<6.0.0
