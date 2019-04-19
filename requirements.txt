@@ -2,6 +2,7 @@ redis
 ipaddr
 publicsuffix
 lxml
+more_itertools
 cherrypy
 sphinx-pypi-upload
 sphinx
