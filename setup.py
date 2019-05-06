@@ -9,7 +9,7 @@ from os.path import abspath, dirname, join
 from setuptools import find_packages
 
 __author__ = 'Leif Johansson'
-__version__ = '0.10.0.dev0'
+__version__ = '0.10.0.dev0_rh'
 
 here = abspath(dirname(__file__))
 README = open(join(here, 'README.rst')).read()
@@ -82,6 +82,7 @@ setup(name='pyFF',
       entry_points={
           'console_scripts': ['pyff=pyff.md:main', 'pyffd=pyff.mdx:main']
       },
+      scripts=['scripts/pyff_mdsplit.py', ],
       message_extractors={'src': [
           ('**.py', 'python', None),
           ('**/templates/**.html', 'mako', None),
