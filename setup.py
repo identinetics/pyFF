@@ -18,7 +18,7 @@ NEWS = open(join(here, 'NEWS.txt')).read()
 install_requires = [
     'mako',
     'six',
-    'urllib3',
+    'urllib3<1.25,>=1.21.1',
     'idna',
     'lxml >=4.1.1',
     'pyyaml >=3.10',
