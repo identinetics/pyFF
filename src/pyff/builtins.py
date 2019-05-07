@@ -399,7 +399,7 @@ Publish the working document in XML form.
 @pipe
 def publish_split(req, *opts):
     """
-Publish the working document in XML form using one file per EntityDescriptor.
+Publish the working document in XML form using one file per EntityDescriptor, Filename is urlencode(entityID).
 Produce unsigned and/or signed documents. Add validUntil and cacheDuration to each EntityDescriptor.
 
 :param req: The request
@@ -483,8 +483,7 @@ Pipe arguments:
         log.debug('writing EntitiyDescriptor ' + ed.attrib['entityID'] + ' to ' + ed_fn)
         if not os.path.exists(os.path.dirname(ed_fn)):
             os.makedirs(os.path.dirname(ed_fn))
-        with open(ed_fn, 'wb') as f:
-            f.write(XMLPROLOGUE + b'\n' + etree.tostring(ed))
+        safe_write(ed_fn, XMLPROLOGUE + b'\n' + etree.tostring(ed))
 
     def entityid_to_dirname(entityid):
         return urllib.parse.quote(entityid, safe='')
@@ -492,6 +491,53 @@ Pipe arguments:
     (unsigned_dir, signed_dir) = check_pipe_args()
     process_tree(req.t, opts)
     return req.t
+
+
+@pipe
+def publish_html(req, *opts):
+    """
+Publish the working document in HTML form using XSLT
+
+:param req: The request
+:param opts: Options (unused)
+:return: None
+
+Arguments:
+    xslt:  stylesheet file path
+    html_out:  output file path
+
+**Examples**
+
+.. code-block:: yaml
+
+    - publish_html:
+        xslt: idp.xsl
+        html_out: idp.html
+    """
+    def check_pipe_args():
+        if req.t is None:
+            raise PipeException("Empty document submitted for publication")
+        try:
+            validate_document(req.t)
+        except DocumentInvalid as ex:
+            log.error(ex.error_log)
+            raise PipeException("XML schema validation failed")
+        if req.args is None or type(req.args) is not dict:
+            raise PipeException("publish_html must specify xslt and html_out")
+        html_fn = req.args.get("html_out", '').strip()
+        if not html_fn or not os.path.isdir(os.path.dirname(html_fn)):
+            raise PipeException("publish_html/html_out must specify an existing directory")
+        xslt_fn = req.args.get("xslt", '').strip()
+        if not xslt_fn or not os.path.isfile(xslt_fn):
+            raise PipeException("publish_html/xslt must specify an existing file")
+        return (html_fn, xslt_fn)
+
+    (html_fn, xslt_fn) = check_pipe_args()
+    log.debug('transforming xml to {} using {}'.format(html_fn, xslt_fn))
+    html = xslt_transform(req.t, xslt_fn)
+    safe_write(html_fn, html)
+    return req.t
+
 
 
 @pipe
@@ -1002,7 +1048,7 @@ user-supplied file. The rest of the keyword arguments are made available as stri
 .. code-block:: yaml
 
     - xslt:
-        sylesheet: foo.xsl
+        stylesheet: foo.xsl
         x: foo
         y: bar
     """
