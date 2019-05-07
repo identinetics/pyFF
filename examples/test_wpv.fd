@@ -17,7 +17,10 @@
     key: pyFF/test/data/wpv/keys/metadata_key.pem
     cert: pyFF/test/data/wpv/keys/metadata_crt.pem
 - publish_split:
-    output_dir: /Users/admin/devl/python/identinetics/pyFF/work/split_unsigned/
+    unsigned_dir: /Users/admin/devl/python/identinetics/pyFF/work/split_unsigned/
+    signed_dir: /Users/admin/devl/python/identinetics/pyFF/work/entities/
+    key: pyFF/test/data/wpv/keys/metadata_key.pem
+    cert: pyFF/test/data/wpv/keys/metadata_crt.pem
 
 - stats
 

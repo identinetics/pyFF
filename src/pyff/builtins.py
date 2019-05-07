@@ -400,18 +400,24 @@ Publish the working document in XML form.
 def publish_split(req, *opts):
     """
 Publish the working document in XML form using one file per EntityDescriptor.
+Produce unsigned and/or signed documents. Add validUntil and cacheDuration to each EntityDescriptor.
 
 :param req: The request
 :param opts: Options (unused)
 
-Pipe has one required argument: path to a file where the document tree will be written.
+Pipe arguments:
+    unsigned_dir and signed_dir. At least one must be given.
+    keys: as in sign pipe
 
 **Example**
 
 .. code-block:: yaml
 
     - publish_split:
-        output_dir: /var/mdfeed/entities/
+        unsigned_dir: /var/mdfeed/split/
+        signed_dir: /var/mdfeed/entities/
+        key: pyFF/test/data/wpv/keys/metadata_key.pem
+        cert: pyFF/test/data/wpv/keys/metadata_crt.pem
     """
 
     XMLPROLOGUE = b'<?xml version="1.0" ?>'
@@ -424,46 +430,57 @@ Pipe has one required argument: path to a file where the document tree will be w
         except DocumentInvalid as ex:
             log.error(ex.error_log)
             raise PipeException("XML schema validation failed")
-        if req.args is None:
-            raise PipeException("publish_split must specify output_dir")
-        if type(req.args) is dict:
-            output_dir = req.args.get("output_dir", None)
-        else:
-            raise PipeException("publish_split must have output_dir: <directory location> dict")
-        if output_dir is None:
-            raise PipeException("missing output_dir key/value")
-        if not os.path.isdir(output_dir):
-            raise PipeException("output_dir not found")
-        return output_dir.strip()
+        if req.args is None or type(req.args) is not dict:
+            raise PipeException("publish_split must specify unsigned_dir and/or signed_dir")
+        unsigned_dir = req.args.get("unsigned_dir", None)
+        signed_dir = req.args.get("signed_dir", None)
+        if unsigned_dir is None and signed_dir is None:
+            raise PipeException("publish_split must specify unsigned_dir and/or signed_dir")
+        if unsigned_dir:
+            if os.path.isdir(unsigned_dir.strip()):
+                unsigned_dir = unsigned_dir.strip()
+            else:
+                raise PipeException("No directory unsigned_dir: " + unsigned_dir)
+        if signed_dir:
+            if os.path.isdir(signed_dir.strip()):
+                signed_dir = signed_dir.strip()
+            else:
+                raise PipeException("No directory signed_dir: " + signed_dir)
+        return (unsigned_dir, signed_dir)
 
-    def process_tree(tree):
-        """ process each ed; take validUntil and cacheDuration from root level """
-        root = tree.getroot()
-        if root.tag != '{urn:oasis:names:tc:SAML:2.0:metadata}EntitiesDescriptor':
+    def process_tree(tree, *opts):
+        root_elem = root(tree)
+        if root_elem.tag != '{urn:oasis:names:tc:SAML:2.0:metadata}EntitiesDescriptor':
             raise Exception('Root element must be EntitiesDescriptor')
-        if 'cacheDuration' in root.attrib:
-            cache_duration = root.attrib['cacheDuration']
-        if 'validUntil' in root.attrib:
-            valid_until = root.attrib['validUntil']
+        if 'cacheDuration' in root_elem.attrib:
+            cache_duration = root_elem.attrib['cacheDuration']
+        if 'validUntil' in root_elem.attrib:
+            valid_until = root_elem.attrib['validUntil']
         alist = ''
-        for a in root.attrib:
-            alist += ' ' + a + '="' + root.attrib[a] + '"'
-        log.debug('Root element: ' + root.tag + alist)
-        for ed in root.findall('{urn:oasis:names:tc:SAML:2.0:metadata}EntityDescriptor'):
-            process_entity_descriptor(ed, cache_duration, valid_until)
+        for a in root_elem.attrib:
+            alist += ' ' + a + '="' + root_elem.attrib[a] + '"'
+        log.debug('Root element: ' + root_elem.tag + alist)
+        for ed in root_elem.findall('{urn:oasis:names:tc:SAML:2.0:metadata}EntityDescriptor'):
+            ed = update_attr(ed, cache_duration, valid_until)
+            if unsigned_dir:
+                write_ed(ed, unsigned_dir)
+            if signed_dir:
+                ed = _sign(req, ed, opts)
+                write_ed(ed, signed_dir)
 
-    def process_entity_descriptor(ed, cache_duration, valid_until):
-        """ create an unsigned EntityDescriptor XML file """
-        ed_dir = os.path.abspath(os.path.join(output_dir,
-                                              entityid_to_dirname(ed.attrib['entityID'])))
-        if not os.path.exists(ed_dir):
-            os.makedirs(ed_dir)
-        ed_fn = os.path.join(ed_dir, 'ed.xml')
-        log.debug('writing unsigned EntitiyDescriptor ' + ed.attrib['entityID'] + ' to ' + ed_fn)
+    def update_attr(ed, cache_duration, valid_until):
         if cache_duration is not None:
             ed.attrib['cacheDuration'] = cache_duration
         if valid_until is not None:
             ed.attrib['validUntil'] = valid_until
+        return ed
+
+    def write_ed(ed, outdir):
+        ed_dir = os.path.abspath(os.path.join(outdir, entityid_to_dirname(ed.attrib['entityID'])))
+        if not os.path.exists(ed_dir):
+            os.makedirs(ed_dir)
+        ed_fn = os.path.join(ed_dir, 'ed.xml')
+        log.debug('writing EntitiyDescriptor ' + ed.attrib['entityID'] + ' to ' + ed_fn)
         if not os.path.exists(os.path.dirname(ed_fn)):
             os.makedirs(os.path.dirname(ed_fn))
         with open(ed_fn, 'wb') as f:
@@ -472,8 +489,8 @@ Pipe has one required argument: path to a file where the document tree will be w
     def entityid_to_dirname(entityid):
         return urllib.parse.quote(entityid, safe='')
 
-    output_dir = check_pipe_args()
-    process_tree(req.t)
+    (unsigned_dir, signed_dir) = check_pipe_args()
+    process_tree(req.t, opts)
     return req.t
 
 
@@ -859,7 +876,10 @@ This example signs the document using the plain key and cert found in the signer
     """
     if req.t is None:
         raise PipeException("Your pipeline is missing a select statement.")
+    return _sign(req, req.t, opts)
 
+
+def _sign(req, tree, *args):
     if not type(req.args) is dict:
         raise PipeException("Missing key and cert arguments to sign pipe")
 
@@ -873,13 +893,12 @@ This example signs the document using the plain key and cert found in the signer
         log.info("Attempting to extract certificate from token...")
 
     opts = dict()
-    relt = root(req.t)
+    relt = root(tree)
     idattr = relt.get('ID')
     if idattr:
         opts['reference_uri'] = "#%s" % idattr
-    xmlsec.sign(req.t, key_file, cert_file, **opts)
-
-    return req.t
+    xmlsec.sign(tree, key_file, cert_file, **opts)
+    return tree
 
 
 @pipe
