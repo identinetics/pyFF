@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import datetime
 from .utils import parse_xml, check_signature, root, validate_document, xml_error, \
     schema, iso2datetime, duration2timedelta, filter_lang, url2host, trunc_str, subdomains, \
     has_tag, hash_id, load_callable, rreplace, dumptree, first_text, url_get, img_to_data, is_text, unicode_stream, \

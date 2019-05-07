@@ -13,9 +13,12 @@ from distutils.util import strtobool
 import operator
 import os
 import re
+import shutil
+import urllib
 import xmlsec
 from iso8601 import iso8601
 from lxml.etree import DocumentInvalid
+import lxml.etree as etree
 from .constants import NS, config
 from .decorators import deprecated
 from .logs import get_log
@@ -389,6 +392,88 @@ Publish the working document in XML form.
 
         safe_write(out, data)
         req.store.update(req.t, tid=resource_name)  # TODO maybe this is not the right thing to do anymore
+    return req.t
+
+
+
+@pipe
+def publish_split(req, *opts):
+    """
+Publish the working document in XML form using one file per EntityDescriptor.
+
+:param req: The request
+:param opts: Options (unused)
+
+Pipe has one required argument: path to a file where the document tree will be written.
+
+**Example**
+
+.. code-block:: yaml
+
+    - publish_split:
+        output_dir: /var/mdfeed/entities/
+    """
+
+    XMLPROLOGUE = b'<?xml version="1.0" ?>'
+
+    def check_pipe_args():
+        if req.t is None:
+            raise PipeException("Empty document submitted for publication")
+        try:
+            validate_document(req.t)
+        except DocumentInvalid as ex:
+            log.error(ex.error_log)
+            raise PipeException("XML schema validation failed")
+        if req.args is None:
+            raise PipeException("publish_split must specify output_dir")
+        if type(req.args) is dict:
+            output_dir = req.args.get("output_dir", None)
+        else:
+            raise PipeException("publish_split must have output_dir: <directory location> dict")
+        if output_dir is None:
+            raise PipeException("missing output_dir key/value")
+        if not os.path.isdir(output_dir):
+            raise PipeException("output_dir not found")
+        return output_dir.strip()
+
+    def process_tree(tree):
+        """ process each ed; take validUntil and cacheDuration from root level """
+        root = tree.getroot()
+        if root.tag != '{urn:oasis:names:tc:SAML:2.0:metadata}EntitiesDescriptor':
+            raise Exception('Root element must be EntitiesDescriptor')
+        if 'cacheDuration' in root.attrib:
+            cache_duration = root.attrib['cacheDuration']
+        if 'validUntil' in root.attrib:
+            valid_until = root.attrib['validUntil']
+        alist = ''
+        for a in root.attrib:
+            alist += ' ' + a + '="' + root.attrib[a] + '"'
+        log.debug('Root element: ' + root.tag + alist)
+        for ed in root.findall('{urn:oasis:names:tc:SAML:2.0:metadata}EntityDescriptor'):
+            process_entity_descriptor(ed, cache_duration, valid_until)
+
+    def process_entity_descriptor(ed, cache_duration, valid_until):
+        """ create an unsigned EntityDescriptor XML file """
+        ed_dir = os.path.abspath(os.path.join(output_dir,
+                                              entityid_to_dirname(ed.attrib['entityID'])))
+        if not os.path.exists(ed_dir):
+            os.makedirs(ed_dir)
+        ed_fn = os.path.join(ed_dir, 'ed.xml')
+        log.debug('writing unsigned EntitiyDescriptor ' + ed.attrib['entityID'] + ' to ' + ed_fn)
+        if cache_duration is not None:
+            ed.attrib['cacheDuration'] = cache_duration
+        if valid_until is not None:
+            ed.attrib['validUntil'] = valid_until
+        if not os.path.exists(os.path.dirname(ed_fn)):
+            os.makedirs(os.path.dirname(ed_fn))
+        with open(ed_fn, 'wb') as f:
+            f.write(XMLPROLOGUE + b'\n' + etree.tostring(ed))
+
+    def entityid_to_dirname(entityid):
+        return urllib.parse.quote(entityid, safe='')
+
+    output_dir = check_pipe_args()
+    process_tree(req.t)
     return req.t
 
 

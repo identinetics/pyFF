@@ -1,0 +1,23 @@
+- load:
+   - /Users/admin/devl/python/identinetics/pyFF/src/pyff/test/data/wpv
+- select
+#- store:
+#    directory: /Users/admin/devl/python/identinetics/pyFF/work/pyff
+- xslt:
+    stylesheet: tidy.xsl
+- info
+- certreport
+- print:
+    output: /Users/admin/devl/python/identinetics/pyFF/work/print/md_unsigned.xml
+- finalize:
+    cacheDuration: PT4H
+    validUntil: P10D
+    ID: TestWpvSignedMetadata_
+- sign:
+    key: pyFF/test/data/wpv/keys/metadata_key.pem
+    cert: pyFF/test/data/wpv/keys/metadata_crt.pem
+- publish_split:
+    output_dir: /Users/admin/devl/python/identinetics/pyFF/work/split_unsigned/
+
+- stats
+

@@ -1,6 +1,6 @@
 """
 mdsplit creates a separate signed XML file for each EntitiyDescriptor from the input md aggregate.
-This is a subset of the MDQ specification to allowing to address an entitiy using following scheme
+This is a subset of the MDQ specification to allowing to address an entity using following scheme
 <baseurl>/entities/<urlencode(entityID)>
 
 Note: The input file is considered to be trusted, therefore its signature is not verified.
@@ -16,11 +16,11 @@ import shutil
 import sys
 import urllib
 
-from pyff.mdrepo import MDRepository
+from pyff.samlmd import MDRepository
 from pyff.pipes import plumbing
 from pyff.store import MemoryStore
 
-XMLDECLARATION = '<?xml version="1.0" ?>'
+XMLDECLARATION = b'<?xml version="1.0" ?>'
 
 
 class Pipeline:
@@ -61,7 +61,7 @@ class Pipeline:
 
 def entityid_to_dirname(entityid):
     entityid_safename = entityid.replace('/', '_').replace(':', '.') # prevent httpd url-encoding '%'
-    return urllib.quote(entityid_safename, safe='')
+    return urllib.parse.quote(entityid_safename, safe='')
 
 
 def simple_md(pipeline):
@@ -69,7 +69,7 @@ def simple_md(pipeline):
     modules = []
     modules.append('pyff.builtins')
     store = MemoryStore()
-    md = MDRepository(store=store)
+    md = MDRepository()
     plumbing(pipeline).process(md, state={'batch': True, 'stats': {}})
 
 
@@ -94,8 +94,8 @@ def process_entity_descriptor(ed, pipeline, args):
         ed.attrib['validUntil'] = args.validUntil
     if not os.path.exists(os.path.dirname(fn_temp)):
         os.makedirs(os.path.dirname(fn_temp))
-    with open(fn_temp, 'w') as f:
-        f.write(XMLDECLARATION + '\n' + etree.tostring(ed))
+    with open(fn_temp, 'wb') as f:
+        f.write(XMLDECLARATION + b'\n' + etree.tostring(ed))
     if not args.nosign:
         if not os.path.exists(args.outdir_signed):
             os.makedirs(args.outdir_signed)
