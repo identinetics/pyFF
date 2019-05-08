@@ -2,24 +2,32 @@ __author__ = 'leifj'
 
 import logging
 import syslog
+import six
 
-import cherrypy
+try:
+    import cherrypy
+except ImportError as e:
+    print("cherrypy logging disabled")
+    cherrypy = None
 
 
 class PyFFLogger(object):
-    def __init__(self):
-        self._loggers = {logging.WARN: logging.warn,
-                         logging.WARNING: logging.warn,
-                         logging.CRITICAL: logging.critical,
-                         logging.INFO: logging.info,
-                         logging.DEBUG: logging.debug,
-                         logging.ERROR: logging.error}
+    def __init__(self, name=None):
+        if name is None:
+            name = __name__
+        self._log = logging.getLogger(name)
+        self._loggers = {logging.WARN: self._log.warn,
+                         logging.WARNING: self._log.warn,
+                         logging.CRITICAL: self._log.critical,
+                         logging.INFO: self._log.info,
+                         logging.DEBUG: self._log.debug,
+                         logging.ERROR: self._log.error}
 
     def _l(self, severity, msg):
-        if '' in cherrypy.tree.apps:
-            cherrypy.tree.apps[''].log("%s" % msg, severity=severity)
+        if cherrypy is not None and '' in cherrypy.tree.apps:
+            cherrypy.tree.apps[''].log(str(msg), severity=severity)
         elif severity in self._loggers:
-            self._loggers[severity]("%s" % msg)
+            self._loggers[severity](str(msg))
         else:
             raise ValueError("unknown severity %s" % severity)
 
@@ -42,10 +50,14 @@ class PyFFLogger(object):
         return self._l(logging.DEBUG, msg)
 
     def isEnabledFor(self, lvl):
-        return logging.getLogger(__name__).isEnabledFor(lvl)
+        return self._log.isEnabledFor(lvl)
 
 
-log = PyFFLogger()
+def get_log(name):
+    return PyFFLogger(name)
+
+
+log = get_log('pyff')
 
 # http://www.aminus.org/blogs/index.php/2008/07/03/writing-high-efficiency-large-python-sys-1?blog=2
 # blog post explicitly gives permission for use
@@ -64,7 +76,7 @@ class SysLogLibHandler(logging.Handler):
 
     def __init__(self, facility):
 
-        if type(facility) is str or type(facility) is unicode:
+        if isinstance(facility, six.string_types):
             nf = getattr(syslog, "LOG_%s" % facility.upper(), None)
             if not isinstance(nf, int):
                 raise ValueError('Invalid log facility: %s' % nf)

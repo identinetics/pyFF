@@ -1,0 +1,37 @@
+- load:
+   - /Users/admin/devl/python/identinetics/pyFF/src/pyFF/test/data/wpv/md_source
+- xslt:
+    stylesheet: tidy.xsl
+- fork:
+  - finalize:
+      cacheDuration: PT4H
+      validUntil: P10D
+      ID: TestWpvSignedMetadata_
+  - sign:
+      key: pyFF/test/data/wpv/keys/metadata_key.pem
+      cert: pyFF/test/data/wpv/keys/metadata_crt.pem
+  - publish: pyFF/test/data/wpv/testout/metadata.xml
+  - publish_split:
+      unsigned_dir: pyFF/test/data/wpv/testout/split_unsigned/
+      signed_dir: pyFF/test/data/wpv/testout/entities/
+      key: pyFF/test/data/wpv/keys/metadata_key.pem
+    cert: pyFF/test/data/wpv/keys/metadata_crt.pem
+- fork:
+  - select:
+    - "!//md:EntityDescriptor[md:IDPSSODescriptor]"
+  - publish_html:
+      xslt: /Users/admin/devl/python/identinetics/pyFF/src/pyFF/test/data/wpv/xslt/idp2html.xsl
+      html_out: /Users/admin/devl/python/identinetics/pyFF/src/pyFF/test/data/wpv/testout/idp.html
+  - sign:
+      key: pyFF/test/data/wpv/keys/metadata_key.pem
+      cert: pyFF/test/data/wpv/keys/metadata_crt.pem
+  - publish: pyFF/test/data/wpv/testout/metadata-idp.xml
+- fork:
+  - select:
+    - "!//md:EntityDescriptor[md:SPSSODescriptor]"
+  - publish_html:
+      xslt: /Users/admin/devl/python/identinetics/pyFF/src/pyFF/test/data/wpv/xslt/sp2html.xsl
+      html_out: /Users/admin/devl/python/identinetics/pyFF/src/pyFF/test/data/wpv/testout/sp.html
+
+- stats
+

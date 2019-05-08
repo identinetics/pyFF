@@ -1,6 +1,7 @@
 """Package that contains the basic set of pipes - functions that can be used to put together a processing pipeling
 for pyFF.
 """
+
 import base64
 import hashlib
 import json
@@ -12,28 +13,30 @@ from distutils.util import strtobool
 import operator
 import os
 import re
+import shutil
+import urllib
 import xmlsec
-import yaml
 from iso8601 import iso8601
 from lxml.etree import DocumentInvalid
-
-from pyff.constants import NS
-from pyff.decorators import deprecated
-from pyff.logs import log
-from pyff.pipes import Plumbing, PipeException, PipelineCallback, pipe
-from pyff.stats import set_metadata_info
-from pyff.utils import total_seconds, dumptree, safe_write, root, duration2timedelta, xslt_transform, \
-    iter_entities, validate_document
-
-try:
-    from cStringIO import StringIO
-except ImportError:  # pragma: no cover
-    print(" *** install cStringIO for better performance")
-    from StringIO import StringIO
+import lxml.etree as etree
+from .constants import NS, config
+from .decorators import deprecated
+from .logs import get_log
+from .pipes import Plumbing, PipeException, PipelineCallback, pipe
+from .utils import total_seconds, dumptree, safe_write, root, with_tree, duration2timedelta, xslt_transform, \
+    validate_document, hash_id
+from .samlmd import sort_entities, iter_entities, annotate_entity, set_entity_attributes, \
+    discojson_t, set_pubinfo, set_reginfo, find_in_document, entitiesdescriptor, set_nodecountry
+from .fetch import Resource
+from six.moves.urllib_parse import urlparse
+from .exceptions import MetadataException
+from .store import make_store_instance
+import six
 
 __author__ = 'leifj'
 
 FILESPEC_REGEX = "([^ \t\n\r\f\v]+)\s+as\s+([^ \t\n\r\f\v]+)"
+log = get_log(__name__)
 
 
 @pipe
@@ -46,10 +49,26 @@ Print a representation of the entities set on stdout. Useful for testing.
 :return: None
     """
     if req.t is not None:
-        print dumptree(req.t)
+        print(dumptree(req.t))
     else:
-        print "<EntitiesDescriptor xmlns=\"%s\"/>" % NS['md']
+        print("<EntitiesDescriptor xmlns=\"{}\"/>".format(NS['md']))
 
+
+@pipe(name="print")
+def _print_t(req, *opts):
+    """
+
+    Print whatever is in the active tree without transformation
+
+    :param req: The request
+    :param opts: Options (unused)
+    :return:
+    """
+    fn = req.args.get('output', None)
+    if fn is not None:
+        safe_write(fn, req.t)
+    else:
+        print(req.t)
 
 @pipe
 def end(req, *opts):
@@ -76,7 +95,7 @@ break out of the pipeline, use break instead.
         code = req.args.get('code', 0)
         msg = req.args.get('message', None)
         if msg is not None:
-            print msg
+            print(msg)
     sys.exit(code)
 
 
@@ -115,8 +134,8 @@ in the case of the MDX server - but by adding 'merge' to the options with an opt
 behaviour can be changed to merge the result of the inner pipeline back to the parent working document.
 
 The default merge strategy is 'replace_existing' which replaces each EntityDescriptor found in the resulting
-document in the parent document (using the entityID as a pointer). Any python module path ('a.mod.u.le.callable')
-ending in a callable is accepted. If the path doesn't contain a '.' then it is assumed to reference one of the
+document in the parent document (using the entityID as a pointer). Any python module path ('a.mod.u.le:callable')
+ending in a callable is accepted. If the path doesn't contain a ':' then it is assumed to reference one of the
 standard merge strategies in pyff.merge_strategies.
 
 For instance the following block can be used to set an attribute on a single entity:
@@ -147,16 +166,17 @@ active document. To avoid this do a select before your fork, thus:
         nt = deepcopy(req.t)
 
     ip = Plumbing(pipeline=req.args, pid="%s.fork" % req.plumbing.pid)
-    # ip.process(req.md,t=nt)
     ireq = Plumbing.Request(ip, req.md, nt)
-    ip._process(ireq)
+    ip.iprocess(ireq)
 
     if req.t is not None and ireq.t is not None and len(root(ireq.t)) > 0:
         if 'merge' in opts:
-            sn = "pyff.merge_strategies.replace_existing"
+            sn = "pyff.merge_strategies:replace_existing"
             if opts[-1] != 'merge':
                 sn = opts[-1]
-            req.md.merge(req.t, ireq.t, strategy_name=sn)
+            req.md.store.merge(req.t, ireq.t, strategy_name=sn)
+
+    return req.t
 
 
 @pipe(name='any')
@@ -237,7 +257,7 @@ is equivalent to
 
     """
     # req.process(Plumbing(pipeline=req.args, pid="%s.pipe" % req.plumbing.pid))
-    ot = Plumbing(pipeline=req.args, pid="%s.pipe" % req.plumbing.id)._process(req)
+    ot = Plumbing(pipeline=req.args, pid="%s.pipe" % req.plumbing.id).iprocess(req)
     req.done = False
     return ot
 
@@ -250,7 +270,6 @@ Conditionally execute part of the pipeline.
 :param req: The request
 :param condition: The condition key
 :param values: The condition values
-:param opts: More Options (unused)
 :return: None
 
 The inner pipeline is executed if the at least one of the condition values is present for the specified key in
@@ -268,12 +287,9 @@ the request state.
 The condition operates on the state: if 'foo' is present in the state (with any value), then the something branch is
 followed. If 'bar' is present in the state with the value 'bill' then the other branch is followed.
     """
-    # log.debug("condition key: %s" % repr(condition))
     c = req.state.get(condition, None)
-    # log.debug("condition %s" % repr(c))
-    if c is not None:
-        if not values or _any(values, c):
-            return Plumbing(pipeline=req.args, pid="%s.when" % req.plumbing.id)._process(req)
+    if c is not None and (not values or _any(values, c)):
+        return Plumbing(pipeline=req.args, pid="%s.when" % req.plumbing.id).iprocess(req)
     return req.t
 
 
@@ -291,7 +307,38 @@ Dumps the working document on stdout. Useful for testing.
         raise PipeException("Your pipeline is missing a select statement.")
 
     for e in req.t.xpath("//md:EntityDescriptor", namespaces=NS, smart_strings=False):
-        print e.get('entityID')
+        print(e.get('entityID'))
+    return req.t
+
+
+@pipe
+def sort(req, *opts):
+    """
+Sorts the working entities by the value returned by the given xpath.
+By default, entities are sorted by 'entityID' when the 'order_by [xpath]' option is omitted and
+otherwise as second criteria.
+Entities where no value exists for a given xpath are sorted last.
+
+:param req: The request
+:param opts: Options: <order_by [xpath]> (see bellow)
+:return: None
+
+Options are put directly after "sort". E.g:
+
+.. code-block:: yaml
+
+    - sort order_by [xpath]
+
+**Options**
+- order_by [xpath] : xpath expression selecting to the value used for sorting the entities.
+    """
+    if req.t is None:
+        raise PipeException("Unable to sort empty document.")
+
+    opts = dict(list(zip(opts[0:1], [" ".join(opts[1:])])))
+    opts.setdefault('order_by', None)
+    sort_entities(req.t, opts['order_by'])
+
     return req.t
 
 
@@ -321,7 +368,7 @@ Publish the working document in XML form.
 
     try:
         validate_document(req.t)
-    except DocumentInvalid, ex:
+    except DocumentInvalid as ex:
         log.error(ex.error_log)
         raise PipeException("XML schema validation failed")
 
@@ -332,22 +379,169 @@ Publish the working document in XML form.
         output_file = req.args[0]
     if output_file is not None:
         output_file = output_file.strip()
-        log.debug("publish %s" % output_file)
         resource_name = output_file
         m = re.match(FILESPEC_REGEX, output_file)
         if m:
             output_file = m.group(1)
             resource_name = m.group(2)
-        log.debug("output_file=%s, resource_name=%s" % (output_file, resource_name))
         out = output_file
         if os.path.isdir(output_file):
-            out = "%s.xml" % os.path.join(output_file, req.id)
-        safe_write(out, dumptree(req.t))
-        req.md.store.update(req.t, tid=resource_name)  # TODO maybe this is not the right thing to do anymore
+            out = "{}.xml".format(os.path.join(output_file, req.id))
+
+        data = dumptree(req.t)
+
+        safe_write(out, data)
+        req.store.update(req.t, tid=resource_name)  # TODO maybe this is not the right thing to do anymore
+    return req.t
+
+
+
+@pipe
+def publish_split(req, *opts):
+    """
+Publish the working document in XML form using one file per EntityDescriptor, Filename is urlencode(entityID).
+Produce unsigned and/or signed documents. Add validUntil and cacheDuration to each EntityDescriptor.
+
+:param req: The request
+:param opts: Options (unused)
+
+Pipe arguments:
+    unsigned_dir and signed_dir. At least one must be given.
+    keys: as in sign pipe
+
+**Example**
+
+.. code-block:: yaml
+
+    - publish_split:
+        unsigned_dir: /var/mdfeed/split/
+        signed_dir: /var/mdfeed/entities/
+        key: pyFF/test/data/wpv/keys/metadata_key.pem
+        cert: pyFF/test/data/wpv/keys/metadata_crt.pem
+    """
+
+    XMLPROLOGUE = b'<?xml version="1.0" ?>'
+
+    def check_pipe_args():
+        if req.t is None:
+            raise PipeException("Empty document submitted for publication")
+        try:
+            validate_document(req.t)
+        except DocumentInvalid as ex:
+            log.error(ex.error_log)
+            raise PipeException("XML schema validation failed")
+        if req.args is None or type(req.args) is not dict:
+            raise PipeException("publish_split must specify unsigned_dir and/or signed_dir")
+        unsigned_dir = req.args.get("unsigned_dir", None)
+        signed_dir = req.args.get("signed_dir", None)
+        if unsigned_dir is None and signed_dir is None:
+            raise PipeException("publish_split must specify unsigned_dir and/or signed_dir")
+        if unsigned_dir:
+            if os.path.isdir(unsigned_dir.strip()):
+                unsigned_dir = unsigned_dir.strip()
+            else:
+                raise PipeException("No directory unsigned_dir: " + unsigned_dir)
+        if signed_dir:
+            if os.path.isdir(signed_dir.strip()):
+                signed_dir = signed_dir.strip()
+            else:
+                raise PipeException("No directory signed_dir: " + signed_dir)
+        return (unsigned_dir, signed_dir)
+
+    def process_tree(tree, *opts):
+        root_elem = root(tree)
+        if root_elem.tag != '{urn:oasis:names:tc:SAML:2.0:metadata}EntitiesDescriptor':
+            raise Exception('Root element must be EntitiesDescriptor')
+        if 'cacheDuration' in root_elem.attrib:
+            cache_duration = root_elem.attrib['cacheDuration']
+        if 'validUntil' in root_elem.attrib:
+            valid_until = root_elem.attrib['validUntil']
+        alist = ''
+        for a in root_elem.attrib:
+            alist += ' ' + a + '="' + root_elem.attrib[a] + '"'
+        log.debug('Root element: ' + root_elem.tag + alist)
+        for ed in root_elem.findall('{urn:oasis:names:tc:SAML:2.0:metadata}EntityDescriptor'):
+            ed = update_attr(ed, cache_duration, valid_until)
+            if unsigned_dir:
+                write_ed(ed, unsigned_dir)
+            if signed_dir:
+                ed = _sign(req, ed, opts)
+                write_ed(ed, signed_dir)
+
+    def update_attr(ed, cache_duration, valid_until):
+        if cache_duration is not None:
+            ed.attrib['cacheDuration'] = cache_duration
+        if valid_until is not None:
+            ed.attrib['validUntil'] = valid_until
+        return ed
+
+    def write_ed(ed, outdir):
+        ed_dir = os.path.abspath(os.path.join(outdir, entityid_to_dirname(ed.attrib['entityID'])))
+        if not os.path.exists(ed_dir):
+            os.makedirs(ed_dir)
+        ed_fn = os.path.join(ed_dir, 'ed.xml')
+        log.debug('writing EntitiyDescriptor ' + ed.attrib['entityID'] + ' to ' + ed_fn)
+        if not os.path.exists(os.path.dirname(ed_fn)):
+            os.makedirs(os.path.dirname(ed_fn))
+        safe_write(ed_fn, XMLPROLOGUE + b'\n' + etree.tostring(ed))
+
+    def entityid_to_dirname(entityid):
+        return urllib.parse.quote(entityid, safe='')
+
+    (unsigned_dir, signed_dir) = check_pipe_args()
+    process_tree(req.t, opts)
     return req.t
 
 
 @pipe
+def publish_html(req, *opts):
+    """
+Publish the working document in HTML form using XSLT
+
+:param req: The request
+:param opts: Options (unused)
+:return: None
+
+Arguments:
+    xslt:  stylesheet file path
+    html_out:  output file path
+
+**Examples**
+
+.. code-block:: yaml
+
+    - publish_html:
+        xslt: idp.xsl
+        html_out: idp.html
+    """
+    def check_pipe_args():
+        if req.t is None:
+            raise PipeException("Empty document submitted for publication")
+        try:
+            validate_document(req.t)
+        except DocumentInvalid as ex:
+            log.error(ex.error_log)
+            raise PipeException("XML schema validation failed")
+        if req.args is None or type(req.args) is not dict:
+            raise PipeException("publish_html must specify xslt and html_out")
+        html_fn = req.args.get("html_out", '').strip()
+        if not html_fn or not os.path.isdir(os.path.dirname(html_fn)):
+            raise PipeException("publish_html/html_out must specify an existing directory")
+        xslt_fn = req.args.get("xslt", '').strip()
+        if not xslt_fn or not os.path.isfile(xslt_fn):
+            raise PipeException("publish_html/xslt must specify an existing file")
+        return (html_fn, xslt_fn)
+
+    (html_fn, xslt_fn) = check_pipe_args()
+    log.debug('transforming xml to {} using {}'.format(html_fn, xslt_fn))
+    html = xslt_transform(req.t, xslt_fn)
+    safe_write(html_fn, html)
+    return req.t
+
+
+
+@pipe
+@deprecated(reason="stats subsystem was removed")
 def loadstats(req, *opts):
     """
     Log (INFO) information about the result of the last call to load
@@ -355,23 +549,11 @@ def loadstats(req, *opts):
     :param opts: Options: (none)
     :return: None
     """
-    from stats import metadata
-    _stats = None
-    try:
-        if 'json' in opts:
-            _stats = json.dumps(metadata)
-        else:
-            buf = StringIO()
-            yaml.dump(metadata, buf)
-            _stats = buf.getvalue()
-    except Exception, ex:
-        log.error(ex)
-
-    log.info("pyff loadstats: %s" % _stats)
+    log.info("pyff loadstats has been deprecated")
 
 
 @pipe
-@deprecated
+@deprecated(reason="replaced with load")
 def remote(req, *opts):
     """Deprecated. Calls :py:mod:`pyff.pipes.builtins.load`.
     """
@@ -379,7 +561,7 @@ def remote(req, *opts):
 
 
 @pipe
-@deprecated
+@deprecated(reason="replaced with load")
 def local(req, *opts):
     """Deprecated. Calls :py:mod:`pyff.pipes.builtins.load`.
     """
@@ -387,7 +569,7 @@ def local(req, *opts):
 
 
 @pipe
-@deprecated
+@deprecated(reason="replaced with load")
 def _fetch(req, *opts):
     return load(req, *opts)
 
@@ -428,7 +610,7 @@ Defaults are marked with (*)
                                  fail_on_error controls whether failure to validating the entire MD file will abort
                                  processing of the pipeline.
     """
-    opts = dict(zip(opts[::2], opts[1::2]))
+    opts = dict(list(zip(opts[::2], opts[1::2])))
     opts.setdefault('timeout', 120)
     opts.setdefault('max_workers', 5)
     opts.setdefault('validate', "True")
@@ -438,74 +620,62 @@ Defaults are marked with (*)
     opts['fail_on_error'] = bool(strtobool(opts['fail_on_error']))
     opts['filter_invalid'] = bool(strtobool(opts['filter_invalid']))
 
-    remote = []
+    remotes = []
+    store = make_store_instance()  # start the load process by creating a provisional store object
+    req._store = store
     for x in req.args:
         x = x.strip()
         log.debug("load parsing '%s'" % x)
         r = x.split()
 
-        assert len(r) in range(1, 7), PipeException(
-            "Usage: load resource [as url] [[verify] verification] [via pipeline]")
+        assert len(r) in range(1, 8), PipeException(
+            "Usage: load resource [as url] [[verify] verification] [via pipeline] [cleanup pipeline]")
 
         url = r.pop(0)
-        params = dict()
+        params = {"via": [],"cleanup": [],"verify": None, "as": url}
 
         while len(r) > 0:
             elt = r.pop(0)
-            if elt in ("as", "verify", "via"):
+            if elt in ("as", "verify", "via", "cleanup"):
                 if len(r) > 0:
-                    params[elt] = r.pop(0)
+                    if elt in ("via", "cleanup"):
+                        params[elt].append(r.pop(0))
+                    else:
+                        params[elt] = r.pop(0)
                 else:
-                    raise PipeException("Usage: load resource [as url] [[verify] verification] [via pipeline]")
+                    raise PipeException(
+                        "Usage: load resource [as url] [[verify] verification] [via pipeline]* [cleanup pipeline]*")
             else:
                 params['verify'] = elt
 
-        for elt in ("verify", "via"):
-            params.setdefault(elt, None)
-
-        params.setdefault('as', url)
-
-        post = None
         if params['via'] is not None:
-            post = PipelineCallback(params['via'], req)
+            params['via'] = [PipelineCallback(pipe, req, store=store) for pipe in params['via']]
 
-        if "://" in url:
-            log.debug("load %s verify %s as %s via %s" % (url, params['verify'], params['as'], params['via']))
-            remote.append((url, params['verify'], params['as'], post))
-        elif os.path.exists(url):
-            if os.path.isdir(url):
-                log.debug("directory %s verify %s as %s via %s" % (url, params['verify'], params['as'], params['via']))
-                req.md.load_dir(url, url=params['as'], validate=opts['validate'], post=post,
-                                fail_on_error=opts['fail_on_error'], filter_invalid=opts['filter_invalid'])
-            elif os.path.isfile(url):
-                log.debug("file %s verify %s as %s via %s" % (url, params['verify'], params['as'], params['via']))
-                remote.append(("file://%s" % url, params['verify'], params['as'], post))
-            else:
-                error = "Unknown file type for load: '%s'" % url
-                if opts['fail_on_error']:
-                    raise PipeException(error)
-                log.error(error)
-        else:
-            error = "Don't know how to load '%s' as %s verify %s via %s (file does not exist?)" % (
-            url, params['as'], params['verify'], params['via'])
-            if opts['fail_on_error']:
-                raise PipeException(error)
-            log.error(error)
+        if params['cleanup'] is not None:
+            params['cleanup'] = [PipelineCallback(pipe, req, store=store) for pipe in params['cleanup']]
 
-    req.md.fetch_metadata(remote, **opts)
+        params.update(opts)
+
+        req.md.rm.add(Resource(url, **params))
+
+    log.debug("Refreshing all resources")
+    req.md.rm.reload(fail_on_error=bool(opts['fail_on_error']), store=store)
+    req._store = None
+    req.md.store = store  # commit the store
 
 
 def _select_args(req):
     args = req.args
-    log.debug("selecting using args: %s" % args)
     if args is None and 'select' in req.state:
         args = [req.state.get('select')]
     if args is None:
-        args = req.md.store.collections()
+        args = req.store.collections()
     if args is None or not args:
-        args = req.md.store.lookup('entities')
+        args = req.store.lookup('entities')
     if args is None or not args:
         args = []
+
+    log.debug("selecting using args: %s" % args)
 
     return args
 
@@ -567,7 +737,7 @@ The 'as' keyword allows a select to be stored as an alias in the local repositor
 
 .. code-block:: yaml
 
-    - select as foo-2.0: "!//md:EntityDescriptor[md:IDPSSODescriptor]""
+    - select as /foo-2.0: "!//md:EntityDescriptor[md:IDPSSODescriptor]"
 
 would allow you to use /foo-2.0.json to refer to the JSON-version of all IdPs in the current repository.
 Note that you should not include an extension in your "as foo-bla-something" since that would make your
@@ -575,24 +745,19 @@ alias invisible for anything except the corresponding mime type.
     """
     args = _select_args(req)
     name = req.plumbing.id
-    alias = False
     if len(opts) > 0:
         if opts[0] != 'as' and len(opts) == 1:
             name = opts[0]
-            alias = True
         if opts[0] == 'as' and len(opts) == 2:
             name = opts[1]
-            alias = True
 
-    ot = req.md.entity_set(args, name)
+    ot = entitiesdescriptor(args, name, lookup_fn=req.md.store.select)
     if ot is None:
         raise PipeException("empty select - stop")
 
-    if alias:
-        nfo = dict(Status='default', Description="Synthetic collection")
-        n = req.md.store.update(ot, name)
-        nfo['Size'] = str(n)
-        set_metadata_info(name, nfo)
+    if req.plumbing.id != name:
+        log.debug("storing synthentic collection {}".format(name))
+        n = req.store.update(ot, name)
 
     return ot
 
@@ -632,15 +797,9 @@ def _filter(req, *opts):
     if args is None or not args:
         args = []
 
-    def _find(member):
-        return req.md.find(req.t, member)
-
-    ot = req.md.entity_set(args, name, lookup_fn=_find, copy=False)
+    ot = entitiesdescriptor(args, name, lookup_fn=lambda member: find_in_document(req.t, member), copy=False)
     if alias:
-        nfo = dict(Status='default', Description="Synthetic collection")
-        n = req.md.store.update(ot, name)
-        nfo['Size'] = str(n)
-        set_metadata_info(name, nfo)
+        n = req.store.update(ot, name)
 
     req.t = None
 
@@ -663,7 +822,7 @@ Select a set of EntityDescriptor elements as a working document but don't valida
 Useful for testing. See py:mod:`pyff.pipes.builtins.pick` for more information about selecting the document.
     """
     args = _select_args(req)
-    ot = req.md.entity_set(args, req.plumbing.id, validate=False)
+    ot = entitiesdescriptor(args, req.plumbing.id, lookup_fn=req.md.store.lookup, validate=False)
     if ot is None:
         raise PipeException("empty select '%s' - stop" % ",".join(args))
     return ot
@@ -697,8 +856,8 @@ then the outer EntitiesDescriptor is stripped. This method does exactly that:
     return req.t
 
 
-@pipe
-def discojson(req, *opts):
+@pipe(name='discojson')
+def _discojson(req, *opts):
     """
 Return a discojuice-compatible json representation of the tree
 
@@ -710,7 +869,7 @@ Return a discojuice-compatible json representation of the tree
     if req.t is None:
         raise PipeException("Your pipeline is missing a select statement.")
 
-    res = [req.md.discojson(e) for e in iter_entities(req.t)]
+    res = discojson_t(req.t)
     res.sort(key=operator.itemgetter('title'))
 
     return json.dumps(res)
@@ -763,7 +922,10 @@ This example signs the document using the plain key and cert found in the signer
     """
     if req.t is None:
         raise PipeException("Your pipeline is missing a select statement.")
+    return _sign(req, req.t, opts)
 
+
+def _sign(req, tree, *args):
     if not type(req.args) is dict:
         raise PipeException("Missing key and cert arguments to sign pipe")
 
@@ -777,13 +939,12 @@ This example signs the document using the plain key and cert found in the signer
         log.info("Attempting to extract certificate from token...")
 
     opts = dict()
-    relt = root(req.t)
+    relt = root(tree)
     idattr = relt.get('ID')
     if idattr:
         opts['reference_uri'] = "#%s" % idattr
-    xmlsec.sign(req.t, key_file, cert_file, **opts)
-
-    return req.t
+    xmlsec.sign(tree, key_file, cert_file, **opts)
+    return tree
 
 
 @pipe
@@ -802,21 +963,40 @@ Display statistics about the current working document.
     - stats
 
     """
-    print "---"
-    print "total size:     %d" % req.md.store.size()
+    if req.t is None:
+        raise PipeException("Your pipeline is missing a select statement.")
+
+    print("---")
+    print("total size:     {:d}".format(req.store.size()))
     if not hasattr(req.t, 'xpath'):
         raise PipeException("Unable to call stats on non-XML")
 
     if req.t is not None:
-        print "selected:       %d" % len(req.t.xpath("//md:EntityDescriptor", namespaces=NS))
-        print "          idps: %d" % len(req.t.xpath("//md:EntityDescriptor[md:IDPSSODescriptor]", namespaces=NS))
-        print "           sps: %d" % len(req.t.xpath("//md:EntityDescriptor[md:SPSSODescriptor]", namespaces=NS))
-    print "---"
+        print("selected:       {:d}".format(len(req.t.xpath("//md:EntityDescriptor", namespaces=NS))))
+        print("          idps: {:d}".format(
+            len(req.t.xpath("//md:EntityDescriptor[md:IDPSSODescriptor]", namespaces=NS))))
+        print(
+            "           sps: {:d}".format(len(req.t.xpath("//md:EntityDescriptor[md:SPSSODescriptor]", namespaces=NS))))
+    print("---")
     return req.t
 
 
 @pipe
-def store(req, *opts):
+def summary(req, *opts):
+    """
+    Display a summary of the repository
+    :param req:
+    :param opts:
+    :return:
+    """
+    if req.t is None:
+        raise PipeException("Your pipeline is missing a select statement.")
+
+    return dict(size=req.store.size())
+
+
+@pipe(name='store')
+def _store(req, *opts):
     """
 Save the working document as separate files
 
@@ -844,14 +1024,10 @@ before you call store.
         if not os.path.isdir(target_dir):
             os.makedirs(target_dir)
         for e in iter_entities(req.t):
-            eid = e.get('entityID')
-            if eid is None or len(eid) == 0:
-                raise PipeException("Missing entityID in %s" % e)
-            m = hashlib.sha1()
-            m.update(eid)
-            d = m.hexdigest()
-            safe_write("%s.xml" % os.path.join(target_dir, d), dumptree(e, pretty_print=True))
+            fn = hash_id(e, prefix=False)
+            safe_write("%s.xml" % os.path.join(target_dir, fn), dumptree(e, pretty_print=True))
     return req.t
+
 
 
 @pipe
@@ -872,7 +1048,7 @@ user-supplied file. The rest of the keyword arguments are made available as stri
 .. code-block:: yaml
 
     - xslt:
-        sylesheet: foo.xsl
+        stylesheet: foo.xsl
         x: foo
         y: bar
     """
@@ -883,13 +1059,12 @@ user-supplied file. The rest of the keyword arguments are made available as stri
     if stylesheet is None:
         raise PipeException("xslt requires stylesheet")
 
-    params = dict((k, "\'%s\'" % v) for (k, v) in req.args.items())
+    params = dict((k, "\'%s\'" % v) for (k, v) in list(req.args.items()))
     del params['stylesheet']
     try:
         return xslt_transform(req.t, stylesheet, params)
-        # log.debug(ot)
-    except Exception, ex:
-        traceback.print_exc(ex)
+    except Exception as ex:
+        log.debug(traceback.format_exc())
         raise ex
 
 
@@ -902,6 +1077,7 @@ Validate the working document
 :param opts: Not used
 :return: The unmodified tree
 
+
 Generate an exception unless the working tree validates. Validation is done automatically during publication and
 loading of metadata so this call is seldom needed.
     """
@@ -909,6 +1085,7 @@ loading of metadata so this call is seldom needed.
         validate_document(req.t)
 
     return req.t
+
 
 @pipe
 def prune(req, *opts):
@@ -948,6 +1125,30 @@ This example would drop the first Signature element only.
             else:  # we just removed the top-level element - return empty tree
                 return None
 
+    return req.t
+
+
+@pipe
+def check_xml_namespaces(req, *opts):
+    """
+
+    :param req: The request
+    :param opts: Options (not used)
+    :return: always returns the unmodified working document or throws an exception if checks fail
+    """
+    if req.t is None:
+        raise PipeException("Your pipeline is missing a select statement.")
+
+    def _verify(elt):
+        if isinstance(elt.tag, six.string_types):
+            for prefix, uri in list(elt.nsmap.items()):
+                if not uri.startswith('urn:'):
+                    u = urlparse(uri)
+                    if u.scheme not in ('http', 'https'):
+                        raise MetadataException(
+                            "Namespace URIs must be be http(s) URIs ('{}' declared on {})".format(uri, elt.tag))
+
+    with_tree(root(req.t), _verify)
     return req.t
 
 
@@ -1013,7 +1214,7 @@ HTML.
                     keysize = cdict['modulus'].bit_length()
                     cert = cdict['cert']
                     if keysize < error_bits:
-                        req.md.annotate(entity_elt,
+                        annotate_entity(entity_elt,
                                         "certificate-error",
                                         "keysize too small",
                                         "%s has keysize of %s bits (less than %s)" % (cert.getSubject(),
@@ -1021,7 +1222,7 @@ HTML.
                                                                                       error_bits))
                         log.error("%s has keysize of %s" % (eid, keysize))
                     elif keysize < warning_bits:
-                        req.md.annotate(entity_elt,
+                        annotate_entity(entity_elt,
                                         "certificate-warning",
                                         "keysize small",
                                         "%s has keysize of %s bits (less than %s)" % (cert.getSubject(),
@@ -1031,7 +1232,7 @@ HTML.
 
                     notafter = cert.getNotAfter()
                     if notafter is None:
-                        req.md.annotate(entity_elt,
+                        annotate_entity(entity_elt,
                                         "certificate-error",
                                         "certificate has no expiration time",
                                         "%s has no expiration time" % cert.getSubject())
@@ -1041,24 +1242,26 @@ HTML.
                             now = datetime.now()
                             dt = et - now
                             if total_seconds(dt) < error_seconds:
-                                req.md.annotate(entity_elt,
+                                annotate_entity(entity_elt,
                                                 "certificate-error",
                                                 "certificate has expired",
                                                 "%s expired %s ago" % (cert.getSubject(), -dt))
                                 log.error("%s expired %s ago" % (eid, -dt))
                             elif total_seconds(dt) < warning_seconds:
-                                req.md.annotate(entity_elt,
+                                annotate_entity(entity_elt,
                                                 "certificate-warning",
                                                 "certificate about to expire",
                                                 "%s expires in %s" % (cert.getSubject(), dt))
                                 log.warn("%s expires in %s" % (eid, dt))
-                        except ValueError, ex:
-                            req.md.annotate(entity_elt,
+                        except ValueError as ex:
+                            annotate_entity(entity_elt,
                                             "certificate-error",
                                             "certificate has unknown expiration time",
                                             "%s unknown expiration time %s" % (cert.getSubject(), notafter))
 
-            except Exception, ex:
+                    req.store.update(entity_elt)
+            except Exception as ex:
+                log.debug(traceback.format_exc())
                 log.error(ex)
 
 
@@ -1099,13 +1302,17 @@ Content-Type HTTP response header.
 
     if d is not None:
         m = hashlib.sha1()
+        if not isinstance(d, six.binary_type):
+            d = d.encode("utf-8")
         m.update(d)
         req.state['headers']['ETag'] = m.hexdigest()
     else:
         raise PipeException("Empty")
 
     req.state['headers']['Content-Type'] = ctype
-    return unicode(d.decode('utf-8')).encode("utf-8")
+    if six.PY2:
+        d = six.u(d)
+    return d
 
 
 @pipe
@@ -1128,7 +1335,7 @@ Useful for testing.
     if req.t is None:
         raise PipeException("Your pipeline is missing a select statement.")
 
-    for fp, pem in xmlsec.crypto.CertDict(req.t).iteritems():
+    for fp, pem in list(xmlsec.crypto.CertDict(req.t).items()):
         log.info("found signing cert with fingerprint %s" % fp)
     return req.t
 
@@ -1172,13 +1379,24 @@ If operating on a single EntityDescriptor then @Name is ignored (cf :py:mod:`pyf
     e = root(req.t)
     if e.tag == "{%s}EntitiesDescriptor" % NS['md']:
         name = req.args.get('name', None)
-        if name is None or not len(name):
+        if name is None or 0 == len(name):
             name = req.args.get('Name', None)
-        if name is None or not len(name):
+        if name is None or 0 == len(name):
             name = req.state.get('url', None)
-        if name is None or not len(name):
+            if name and 'baseURL' in req.args:
+
+                try:
+                    name_url = urlparse(name)
+                    base_url = urlparse(req.args.get('baseURL'))
+                    name = "{}://{}{}".format(base_url.scheme, base_url.netloc, name_url.path)
+                    log.debug("-------- using Name: %s" % name)
+                except ValueError as ex:
+                    log.debug(ex)
+                    name = None
+        if name is None or 0 == len(name):
             name = e.get('Name', None)
-        if name is not None and len(name):
+
+        if name:
             e.set('Name', name)
 
     now = datetime.utcnow()
@@ -1186,12 +1404,12 @@ If operating on a single EntityDescriptor then @Name is ignored (cf :py:mod:`pyf
     mdid = req.args.get('ID', 'prefix _')
     if re.match('(\s)*prefix(\s)*', mdid):
         prefix = re.sub('^(\s)*prefix(\s)*', '', mdid)
-        ID = now.strftime(prefix + "%Y%m%dT%H%M%SZ")
+        _id = now.strftime(prefix + "%Y%m%dT%H%M%SZ")
     else:
-        ID = mdid
+        _id = mdid
 
     if not e.get('ID'):
-        e.set('ID', ID)
+        e.set('ID', _id)
 
     valid_until = str(req.args.get('validUntil', e.get('validUntil', None)))
     if valid_until is not None and len(valid_until) > 0:
@@ -1205,7 +1423,7 @@ If operating on a single EntityDescriptor then @Name is ignored (cf :py:mod:`pyf
                 dt = dt.replace(tzinfo=None)  # make dt "naive" (tz-unaware)
                 offset = dt - now
                 e.set('validUntil', dt.strftime("%Y-%m-%dT%H:%M:%SZ"))
-            except ValueError, ex:
+            except ValueError as ex:
                 log.error("Unable to parse validUntil: %s (%s)" % (valid_until, ex))
 
                 # set a reasonable default: 50% of the validity
@@ -1249,7 +1467,7 @@ elements of the active document.
         raise PipeException("Your pipeline is missing a select statement.")
 
     for e in iter_entities(req.t):
-        req.md.set_reginfo(e, **req.args)
+        set_reginfo(e, **req.args)
 
     return req.t
 
@@ -1276,7 +1494,7 @@ elements of the active document.
     if req.t is None:
         raise PipeException("Your pipeline is missing a select statement.")
 
-    req.md.set_pubinfo(root(req.t), **req.args)
+    set_pubinfo(root(req.t), **req.args)
 
     return req.t
 
@@ -1310,6 +1528,41 @@ document for later processing.
 
     for e in iter_entities(req.t):
         # log.debug("setting %s on %s" % (req.args,e.get('entityID')))
-        req.md.set_entity_attributes(e, req.args)
+        set_entity_attributes(e, req.args)
+        req.store.update(e)
+
+    return req.t
+
+
+@pipe(name='nodecountry')
+def _nodecountry(req, *opts):
+    """
+Sets eidas:NodeCountry
+
+:param req: The request
+:param opts: Options (not used)
+:return: A modified working document
+
+Transforms the working document by setting NodeCountry
+
+**Examples**
+
+.. code-block:: yaml
+
+    - nodecountry:
+        country: XX
+
+Normally this would be combined with the 'merge' feature of fork or in a cleanup pipline to add attributes to
+the working document for later processing.
+    """
+    if req.t is None:
+        raise PipeException("Your pipeline is missing a select statement.")
+
+    for e in iter_entities(req.t):
+        if req.args is not None and 'country' in req.args:
+            set_nodecountry(e, country_code=req.args['country'])
+            req.store.update(e)
+        else:
+            log.error("No country found in arguments to nodecountry")
 
     return req.t

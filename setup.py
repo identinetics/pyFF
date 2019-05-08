@@ -9,37 +9,42 @@ from os.path import abspath, dirname, join
 from setuptools import find_packages
 
 __author__ = 'Leif Johansson'
-__version__ = '0.10.0dev'
+__version__ = '0.10.0.dev0_rh'
 
 here = abspath(dirname(__file__))
 README = open(join(here, 'README.rst')).read()
 NEWS = open(join(here, 'NEWS.txt')).read()
 
 install_requires = [
-    'lxml >=3.0',
+    'mako',
+    'six',
+    'urllib3<1.25,>=1.21.1',
+    'idna',
+    'lxml >=4.1.1',
     'pyyaml >=3.10',
     'pyXMLSecurity >=0.15',
-    'cherrypy >=3.2.0',
+    'cherrypy',
     'iso8601 >=0.1.4',
     'simplejson >=2.6.2',
     'jinja2',
     'httplib2 >=0.7.7',
+    'six>=1.11.0',
     'ipaddr',
     'publicsuffix',
     'redis',
     'futures',
     'requests',
-    'pyconfig'
+    'requests_cache',
+    'requests_file',
+    'pyconfig',
+    'pyyaml',
+    'multiprocess',
+    'minify',
+    'whoosh'
 ]
 
 python_implementation_str = python_implementation()
 
-if not (python_implementation_str == 'CPython' and version_info.major == 2 and (version_info.minor == 6 or version_info.minor == 7)):
-    raise RuntimeError('ERROR: running under unsupported {python_implementation_str:s} version '
-                       '{major_version:d}.{minor_version:d}. Please consult the documentation for supported platforms. '
-                       .format(python_implementation_str=python_implementation_str,
-                               major_version=version_info.major,
-                               minor_version=version_info.minor))
 setup(name='pyFF',
       version=__version__,
       description="Federation Feeder",

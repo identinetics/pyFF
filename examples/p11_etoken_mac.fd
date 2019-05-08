@@ -1,0 +1,12 @@
+- load: 
+  - /Users/admin/devl/docker/identinetics/d-pyff/install/testdata/md_source
+- select
+- xslt:
+    stylesheet: tidy.xsl
+- sign: 
+    #key: pkcs11:///Library/Frameworks/eToken.framework/Versions/Current/libetvTokenEngine.dylib/mdsign-token-test
+    key: pkcs11:///Library/Frameworks/eToken.framework/Versions/Current/libeToken.dylib/sigkey-citest
+    # Token PW injected from environment variable PYKCS11PIN
+- publish:
+    output: /tmp/idp.xml
+- stats

@@ -3,11 +3,12 @@ Various decorators used in pyFF.
 """
 import functools
 from collections import namedtuple
+import time
+from .logs import get_log
 
 __author__ = 'leifj'
 
-import time
-from .logs import log
+log = get_log(__name__)
 
 
 def retry(ex, tries=4, delay=3, backoff=2, logger=log):
@@ -37,12 +38,12 @@ def retry(ex, tries=4, delay=3, backoff=2, logger=log):
             while mtries > 1:
                 try:
                     return f(*args, **kwargs)
-                except ex, e:
+                except ex as e:
                     msg = "%s, Retrying in %d seconds..." % (str(e), mdelay)
                     if logger:
                         logger.warn(msg)
                     else:
-                        print msg
+                        print(msg)
                     time.sleep(mdelay)
                     mtries -= 1
                     mdelay *= backoff
@@ -54,24 +55,25 @@ def retry(ex, tries=4, delay=3, backoff=2, logger=log):
     return deco_retry
 
 
-def deprecated(logger=log):
+def deprecated(logger=log, reason="Complain to the developer about unspecified code deprecation"):
     """This is a decorator which can be used to mark functions
     as deprecated. It will result in a warning being emitted
     when the function is used."""
 
     def decorating(func):
         def new_func(*args, **kwargs):
-            msg = "Call to deprecated function %s at %s:%d" % (func.__name__,
-                                                               func.func_code.co_filename,
-                                                               func.func_code.co_firstlineno + 1)
+            msg = "Call to deprecated function %s at %s:%d\nReason: %s" % (func.__name__,
+                                                                           func.__code__.co_filename,
+                                                                           func.__code__.co_firstlineno + 1, reason)
             if logger:
                 logger.warn(msg)
             else:
-                print msg
+                print(msg)
 
             return func(*args, **kwargs)
 
         return new_func
+
     return decorating
 
 
@@ -79,6 +81,7 @@ class _HashedSeq(list):
     __slots__ = 'hashvalue'
 
     def __init__(self, tup, thehash=hash):
+        super(_HashedSeq, self).__init__()
         self[:] = tup
         self.hashvalue = thehash(tup)
 
@@ -93,10 +96,26 @@ def _make_key(args, kwds, typed,
               thetuple=tuple,
               thetype=type,
               thelen=len):
-    'Make a cache key from optionally typed positional and keyword arguments'
+    """
+
+    :param args:
+    :param kwds:
+    :param typed:
+    :param kwd_mark:
+    :param fasttypes:
+    :param thesorted:
+    :param thetuple:
+    :param thetype:
+    :param thelen:
+    :return:
+
+    Make a cache key from optionally typed positional and keyword arguments
+
+    """
     key = args
+    sorted_items = dict()
     if kwds:
-        sorted_items = thesorted(kwds.items())
+        sorted_items = thesorted(list(kwds.items()))
         key += kwd_mark
         for item in sorted_items:
             key += item
@@ -161,5 +180,3 @@ def cached(typed=False, ttl=None, hash_key=None):
         return functools.update_wrapper(wrapper, func)
 
     return decorating
-
-

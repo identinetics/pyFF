@@ -1,9 +1,9 @@
+
+
 import logging
-from StringIO import StringIO
+from six import StringIO
 from unittest import TestCase
-
 from mock import patch
-
 from pyff.logs import log, SysLogLibHandler
 
 
@@ -40,6 +40,7 @@ class TestLog(TestCase):
             logger.removeHandler(test_handler)
             for hdl in old_handlers:
                 logger.addHandler(hdl)
+
 
 class TestSyslog(TestCase):
 

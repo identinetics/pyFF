@@ -2,10 +2,10 @@ __author__ = 'leifj'
 # -*- coding: utf-8 -*-
 
 import gettext
-
 import cherrypy
 import locale
 import os
+import six
 
 # Change this variable to your app name!
 #  The translation files will be under
@@ -24,7 +24,11 @@ if lc:
 
 mo_location = LOCALE_DIR
 
-gettext.install(True, localedir=None, unicode=1)
+if six.PY2:
+    gettext.install(True, localedir=None, unicode=1)
+else:
+    gettext.install(True, localedir=None)
+
 gettext.find(APP_NAME, mo_location)
 gettext.textdomain(APP_NAME)
 gettext.bind_textdomain_codeset(APP_NAME, "UTF-8")

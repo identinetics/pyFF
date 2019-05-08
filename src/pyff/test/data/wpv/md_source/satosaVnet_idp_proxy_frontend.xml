@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<ns0:EntityDescriptor xmlns:ns0="urn:oasis:names:tc:SAML:2.0:metadata" xmlns:ns1="http://www.w3.org/2000/09/xmldsig#" xmlns:ns2="urn:oasis:names:tc:SAML:metadata:ui" ID="id-E8kaVudUecUyir6K8"
+                      entityID="https://satosa.vnet/idp_proxy.xml">
+  <ns1:Signature Id="Signature1">
+    <ns1:SignedInfo>
+      <ns1:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+      <ns1:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
+      <ns1:Reference URI="#id-E8kaVudUecUyir6K8">
+        <ns1:Transforms>
+          <ns1:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+          <ns1:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+        </ns1:Transforms>
+        <ns1:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
+        <ns1:DigestValue>g1sJmLSZS1DKAxF5EVTbfyQK0jE=</ns1:DigestValue>
+      </ns1:Reference>
+    </ns1:SignedInfo>
+    <ns1:SignatureValue>Nd4iQsou6Hu/d5ycwue3kjU4KKnCyBzTwm5uCPdQgI1YpzA12okYVOlrKTm+9VLw
+      NQiqpjq8g0tnzuSDLNJDShI8cka1BhJKxGLxDuRA2swL450IAl/g/8g6bn5zmHU2
+      zU0jsr/H2Vr1U7dMzx7PBb/1uYHqcupV7nSXBbnrc90=
+    </ns1:SignatureValue>
+    <ns1:KeyInfo>
+      <ns1:X509Data>
+        <ns1:X509Certificate>
+          MIICIzCCAYwCAXcwDQYJKoZIhvcNAQELBQAwWjELMAkGA1UEBhMCc2UxCzAJBgNVBAgTAmFjMQ0wCwYDVQQHEwRVbWVhMQwwCgYDVQQKEwNJVFMxDTALBgNVBAsTBERJUkcxEjAQBgNVBAMTCWxvY2FsaG9zdDAeFw0xNDAzMTkxNzE5MzlaFw0yNDAzMTYxNzE5MzlaMFoxCzAJBgNVBAYTAnNlMQswCQYDVQQIEwJhYzENMAsGA1UEBxMEVW1lYTEMMAoGA1UEChMDSVRTMQ0wCwYDVQQLEwRESVJHMRIwEAYDVQQDEwlsb2NhbGhvc3QwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBALswQbMz6dKL4FEKu+O3GYDfaniyxcfizsHaiehuh5jufrlGZw/zMMttteTRhpjtTFN2/R68d1kh8pmO+HV7u+53h+C33I178ZsOquSovGe1AWmzDzp2j6CRdQYdZaMCc4YxtwEXs7570YmnPLKhz8aHdiQRHhtx1cqdPPStkz67AgMBAAEwDQYJKoZIhvcNAQELBQADgYEApQ5znEdhsJBs+ew81X9pkUKZ/ruu/p2OPfYmKzdFnK6mq9bF5CEIaIkvbSJjpECicmGCNw9ATJXylnwFLnfxw6d+YGi4XPuo64NSG00ycnMSTMJ8OR5ForcF89v72BLRDYo6yXeNDw722ul0lPzH54CNQzsm4N/5w5iStnOT1TQ=
+        </ns1:X509Certificate>
+      </ns1:X509Data>
+    </ns1:KeyInfo>
+  </ns1:Signature>
+  <ns0:IDPSSODescriptor WantAuthnRequestsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <ns0:Extensions>
+      <ns2:UIInfo>
+        <ns2:DisplayName xml:lang="en">IdP Proxy</ns2:DisplayName>
+        <ns2:Description xml:lang="en">IdP Proxy</ns2:Description>
+      </ns2:UIInfo>
+    </ns0:Extensions>
+    <ns0:KeyDescriptor use="signing">
+      <ns1:KeyInfo>
+        <ns1:X509Data>
+          <ns1:X509Certificate>MIICIzCCAYwCAXcwDQYJKoZIhvcNAQELBQAwWjELMAkGA1UEBhMCc2UxCzAJBgNV
+            BAgTAmFjMQ0wCwYDVQQHEwRVbWVhMQwwCgYDVQQKEwNJVFMxDTALBgNVBAsTBERJ
+            UkcxEjAQBgNVBAMTCWxvY2FsaG9zdDAeFw0xNDAzMTkxNzE5MzlaFw0yNDAzMTYx
+            NzE5MzlaMFoxCzAJBgNVBAYTAnNlMQswCQYDVQQIEwJhYzENMAsGA1UEBxMEVW1l
+            YTEMMAoGA1UEChMDSVRTMQ0wCwYDVQQLEwRESVJHMRIwEAYDVQQDEwlsb2NhbGhv
+            c3QwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBALswQbMz6dKL4FEKu+O3GYDf
+            aniyxcfizsHaiehuh5jufrlGZw/zMMttteTRhpjtTFN2/R68d1kh8pmO+HV7u+53
+            h+C33I178ZsOquSovGe1AWmzDzp2j6CRdQYdZaMCc4YxtwEXs7570YmnPLKhz8aH
+            diQRHhtx1cqdPPStkz67AgMBAAEwDQYJKoZIhvcNAQELBQADgYEApQ5znEdhsJBs
+            +ew81X9pkUKZ/ruu/p2OPfYmKzdFnK6mq9bF5CEIaIkvbSJjpECicmGCNw9ATJXy
+            lnwFLnfxw6d+YGi4XPuo64NSG00ycnMSTMJ8OR5ForcF89v72BLRDYo6yXeNDw72
+            2ul0lPzH54CNQzsm4N/5w5iStnOT1TQ=
+          </ns1:X509Certificate>
+        </ns1:X509Data>
+      </ns1:KeyInfo>
+    </ns0:KeyDescriptor>
+    <ns0:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:persistent</ns0:NameIDFormat>
+    <ns0:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</ns0:NameIDFormat>
+    <ns0:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://satosa.vnet/saml2/sso/post"/>
+    <ns0:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://satosa.vnet/saml2/sso/redirect"/>
+  </ns0:IDPSSODescriptor>
+  <ns0:Organization>
+    <ns0:OrganizationName xml:lang="en">Austria Pro AK WPV</ns0:OrganizationName>
+    <ns0:OrganizationDisplayName xml:lang="en">Austria Pro AK WPV</ns0:OrganizationDisplayName>
+    <ns0:OrganizationURL xml:lang="en">http://www.wirtschaftsportalverbund.at</ns0:OrganizationURL>
+  </ns0:Organization>
+  <ns0:ContactPerson contactType="technical">
+    <ns0:GivenName>Technical</ns0:GivenName>
+    <ns0:EmailAddress>technical@example.com</ns0:EmailAddress>
+  </ns0:ContactPerson>
+  <ns0:ContactPerson contactType="support">
+    <ns0:GivenName>Support</ns0:GivenName>
+    <ns0:EmailAddress>support@example.com</ns0:EmailAddress>
+  </ns0:ContactPerson>
+</ns0:EntityDescriptor>
